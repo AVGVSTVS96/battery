@@ -38,9 +38,7 @@ enum Format {
         return "\(h) h \(m) min"
     }
 
-    static func watts(_ watts: Double) -> String {
-        watts >= 10 ? String(format: "%.1f", watts) : String(format: "%.2f", watts)
-    }
+    static func watts(_ watts: Double) -> String { String(format: "%.1f", watts) }
 
     static func degrees(_ celsius: Double) -> String { String(format: "%.1f°", celsius) }
 

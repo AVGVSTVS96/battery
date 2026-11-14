@@ -65,24 +65,39 @@ nonisolated public struct ScreenTimeView: View {
 
     /// The height the view needs at a width, which the app sets, since a report can't size itself to its content.
     public static func height(for width: CGFloat) -> CGFloat {
-        isWide(width) ? 460 : 900
+        switch Tier(width) {
+        case .wide: 440
+        case .medium: 550
+        case .narrow: 900
+        }
     }
 
-    static func isWide(_ width: CGFloat) -> Bool { width >= 560 }
+    /// The page's own three layouts, by the width the report gets.
+    enum Tier {
+        case narrow, medium, wide
+
+        init(_ width: CGFloat) { self = width >= 800 ? .wide : width >= 500 ? .medium : .narrow }
+    }
 
     public var body: some View {
         GeometryReader { geo in
-            if Self.isWide(geo.size.width) {
-                VStack(alignment: .leading, spacing: 30) {
+            VStack(alignment: .leading, spacing: 30) {
+                switch Tier(geo.size.width) {
+                case .wide:
                     HStack(alignment: .top, spacing: 32) {
                         figures(stacked: true).frame(width: min(geo.size.width * 0.24, 230))
                         part("This week", note: "per day") { week }
                         part("Today", note: "by hour") { today }
                     }
-                    part("Most used", note: "this week") { apps(columns: geo.size.width >= 820 ? 3 : 2) }
-                }
-            } else {
-                VStack(alignment: .leading, spacing: 30) {
+                    part("Most used", note: "this week") { apps(columns: 3) }
+                case .medium:
+                    figures(stacked: false)
+                    HStack(alignment: .top, spacing: 32) {
+                        part("This week", note: "per day") { week }
+                        part("Today", note: "by hour") { today }
+                    }
+                    part("Most used", note: "this week") { apps(columns: 2) }
+                case .narrow:
                     figures(stacked: false)
                     part("This week", note: "per day") { week }
                     part("Today", note: "by hour") { today }
@@ -152,6 +167,7 @@ nonisolated public struct ScreenTimeView: View {
 
     private var week: some View {
         let calendar = Calendar.current
+        let top = max(screenTime.days.map(\.total).max() ?? 0, 3600) / 3600 * 1.15
         return Chart {
             ForEach(screenTime.days) { day in
                 BarMark(x: .value("Day", day.start, unit: .day), y: .value("Hours", day.total / 3600), width: .ratio(0.55))
@@ -164,6 +180,7 @@ nonisolated public struct ScreenTimeView: View {
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
             }
         }
+        .chartYScale(domain: 0...top)
         .chartYAxis {
             AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [3, 3])).foregroundStyle(Ink.line)
@@ -187,10 +204,13 @@ nonisolated public struct ScreenTimeView: View {
         let hour = Calendar.current.component(.hour, from: screenTime.now)
         return Chart {
             ForEach(0..<24, id: \.self) { h in
-                BarMark(xStart: .value("From", Double(h) - 0.35), xEnd: .value("To", Double(h) + 0.35),
-                        y: .value("Minutes", (h < screenTime.hours.count ? screenTime.hours[h] : 0) / 60))
-                    .foregroundStyle(h == hour ? Ink.violet : Ink.primary.opacity(0.22))
-                    .clipShape(.rect(cornerRadius: 2))
+                let minutes = (h < screenTime.hours.count ? screenTime.hours[h] : 0) / 60
+                if minutes > 0 {
+                    RectangleMark(xStart: .value("From", Double(h) - 0.35), xEnd: .value("To", Double(h) + 0.35),
+                                  yStart: .value("Floor", 0), yEnd: .value("Minutes", minutes))
+                        .foregroundStyle(h == hour ? Ink.violet : Ink.primary.opacity(0.22))
+                        .clipShape(.rect(cornerRadius: 2))
+                }
             }
         }
         .chartXScale(domain: -0.5...23.5)

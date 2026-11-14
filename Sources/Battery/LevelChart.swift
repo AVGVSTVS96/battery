@@ -93,7 +93,8 @@ struct LevelChart: View {
                 PointMark(x: .value("Done", forecast.date), y: .value("Level", last.percent))
                     .foregroundStyle(tint)
                     .symbolSize(36)
-                    .annotation(position: forecast.target > 0 ? .bottomTrailing : .topTrailing, spacing: 4) {
+                    .annotation(position: forecast.target > 0 ? .bottomTrailing : .topTrailing, spacing: 4,
+                                overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
                         Text(Format.time(forecast.date)).font(.small.weight(.medium)).foregroundStyle(tint)
                     }
             }

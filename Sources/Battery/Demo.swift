@@ -9,13 +9,21 @@ enum Demo {
         return arguments[at + 1]
     }()
     static var isOn: Bool { scene != nil }
-    /// `-page history` opens on that page.
-    static let page: String? = {
+    /// `-page history` opens on that page, and `-page history-day` on History's Day range.
+    static let page: String? = pageArgument?.split(separator: "-").first.map(String.init)
+    static let range: String? = pageArgument?.split(separator: "-").dropFirst().first.map(String.init)
+    private static let pageArgument: String? = {
         let arguments = ProcessInfo.processInfo.arguments
         guard let at = arguments.firstIndex(of: "-page"), arguments.indices.contains(at + 1) else { return nil }
         return arguments[at + 1]
     }()
     static var charging: Bool { scene != "battery" }
+
+    /// Tells scripts/shots the page is up: a screenshot before this catches the launch screen.
+    static func drawn() {
+        guard isOn, let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+        FileManager.default.createFile(atPath: caches.appending(path: "drawn").path(), contents: nil)
+    }
 
     /// 9:41 on Saturday, November 14, 2026, the status bar's time.
     static let now = DateComponents(calendar: .current, year: 2026, month: 11, day: 14, hour: 9, minute: 41).date!

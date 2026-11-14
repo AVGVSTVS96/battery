@@ -7,7 +7,7 @@
 # Usage: scripts/shots [scene…], each scene `<demo>:<page>[@<scroll offset>]`
 set -euo pipefail
 cd "$(dirname "$0")/.."
-[ $# -gt 0 ] || set -- charging:now battery:now charging:now@760 charging:history charging:history@820 charging:history@1500 charging:history@2100 charging:history@2700 charging:health
+[ $# -gt 0 ] || set -- charging:now battery:now charging:now@760 charging:history charging:history@820 charging:history@1500 charging:history@2100 charging:history@2700 charging:history-day charging:history-4 charging:health
 scenes=("$@")
 xcodegen -q
 xcodebuild -project Battery.xcodeproj -scheme Battery -destination 'generic/platform=iOS Simulator' -derivedDataPath build build -quiet
@@ -28,10 +28,16 @@ shoot() { # pose display scene appearance
   [[ $rest == *@* ]] && offset=${rest#*@}
   xcrun simctl ui "$id" appearance "$4"
   xcrun simctl terminate "$id" com.shahidy.battery 2>/dev/null || true
+  local drawn
+  drawn="$(xcrun simctl get_app_container "$id" com.shahidy.battery data)/Library/Caches/drawn"
+  rm -f "$drawn"
   xcrun simctl launch "$id" com.shahidy.battery -demo "$demo" -page "$page" -offset "$offset" >/dev/null
-  sleep 5
   local name="$1-$demo-$page"
   [ "$offset" = 0 ] || name+="-$offset"
+  # The app marks itself drawn once its page is up; a screenshot sooner catches the launch screen.
+  for _ in $(seq 60); do [ -e "$drawn" ] && break; sleep 0.5; done
+  [ -e "$drawn" ] || echo "$name-$4: the app never marked itself drawn" >&2
+  sleep 1.5
   xcrun simctl io "$id" screenshot --display="$2" "shots/$name-$4.png" >/dev/null 2>&1
 }
 while read -r pose hinge orientation display; do

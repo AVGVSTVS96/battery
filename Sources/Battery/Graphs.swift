@@ -77,7 +77,8 @@ struct ChargeRow: View {
     }
 
     private var row: some View {
-        let layout = width == .narrow
+        let stacked = width != .wide
+        let layout = stacked
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
             : AnyLayout(HStackLayout(alignment: .center, spacing: 20))
         return layout {
@@ -89,9 +90,9 @@ struct ChargeRow: View {
                         .font(.label).foregroundStyle(Ink.secondary)
                 }
                 Spacer(minLength: 0)
-                if width == .narrow { chevron }
+                if stacked { chevron }
             }
-            .frame(width: width == .narrow ? nil : 200, alignment: .leading)
+            .frame(width: stacked ? nil : 200, alignment: .leading)
 
             HStack(spacing: 20) {
                 column("Level", value: "\(Int(session.from))→\(Int(session.to))%") {
@@ -104,9 +105,9 @@ struct ChargeRow: View {
                 column("Time", value: Format.duration(session.duration)) {
                     HeldTrack(total: session.duration, held: session.held)
                 }
-                .frame(maxWidth: width == .narrow ? .infinity : 150)
+                .frame(maxWidth: stacked ? .infinity : 150)
             }
-            if width != .narrow { chevron }
+            if !stacked { chevron }
         }
         .padding(.vertical, 16)
     }
@@ -121,17 +122,17 @@ struct ChargeRow: View {
     private var title: String {
         let day = Format.day(session.start, now: now)
         let hour = Calendar.current.component(.hour, from: session.start)
-        if session.ongoing { return "Now · since \(Format.time(session.start))" }
-        if day == "Yesterday" && hour >= 20 { return "Last night · \(Format.time(session.start))" }
-        return "\(day) · \(Format.time(session.start))"
+        if session.ongoing { return "Now\u{00A0}· since \(Format.time(session.start))" }
+        if day == "Yesterday" && hour >= 20 { return "Last night\u{00A0}· \(Format.time(session.start))" }
+        return "\(day)\u{00A0}· \(Format.time(session.start))"
     }
 
     private func column<Track: View>(_ label: String, value: String, @ViewBuilder track: () -> Track) -> some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack {
-                Text(label).font(.small).foregroundStyle(Ink.secondary)
+                Text(label).font(.small).foregroundStyle(Ink.secondary).lineLimit(1)
                 Spacer(minLength: 4)
-                Text(value).font(.system(size: 13).monospacedDigit()).foregroundStyle(Ink.primary)
+                Text(value).font(.system(size: 13).monospacedDigit()).foregroundStyle(Ink.primary).lineLimit(1)
             }
             track()
         }
@@ -157,18 +158,23 @@ struct RangeTrack: View {
     }
 }
 
-/// How much of a charge was spent held, striped.
+/// How long a charge took against a 12-hour track, the part spent held striped.
 struct HeldTrack: View {
     var total: TimeInterval
     var held: TimeInterval
 
     var body: some View {
         GeometryReader { geo in
-            let share = total > 0 ? held / total : 0
-            HStack(spacing: 2) {
-                Capsule().fill(Ink.primary.opacity(0.75)).frame(width: geo.size.width * (1 - share))
-                if share > 0.02 {
-                    Hatch(spacing: 3.5).stroke(Ink.amber, lineWidth: 1).clipShape(Capsule())
+            let length = geo.size.width * min(total / (12 * 3600), 1)
+            let heldShare = total > 0 ? min(held / total, 1) : 0
+            ZStack(alignment: .leading) {
+                Capsule().fill(Ink.track)
+                HStack(spacing: 2) {
+                    Capsule().fill(Ink.primary.opacity(0.75)).frame(width: max(length * (1 - heldShare), 4))
+                    if heldShare > 0.02 {
+                        Hatch(spacing: 3.5).stroke(Ink.amber, lineWidth: 1).clipShape(Capsule())
+                            .frame(width: length * heldShare)
+                    }
                 }
             }
         }
@@ -307,9 +313,12 @@ struct HourProfile: View {
         let hour = Calendar.current.component(.hour, from: now)
         Chart {
             ForEach(0..<24, id: \.self) { h in
-                BarMark(xStart: .value("From", Double(h) - 0.35), xEnd: .value("To", Double(h) + 0.35), y: .value("Rate", rates[h]))
-                    .foregroundStyle(h == hour ? Ink.brand : Ink.primary.opacity(0.22))
-                    .clipShape(.rect(cornerRadius: 2))
+                if rates[h] > 0 {
+                    RectangleMark(xStart: .value("From", Double(h) - 0.35), xEnd: .value("To", Double(h) + 0.35),
+                                  yStart: .value("Floor", 0), yEnd: .value("Rate", rates[h]))
+                        .foregroundStyle(h == hour ? Ink.brand : Ink.primary.opacity(0.22))
+                        .clipShape(.rect(cornerRadius: 2))
+                }
             }
         }
         .chartXScale(domain: -0.5...23.5)

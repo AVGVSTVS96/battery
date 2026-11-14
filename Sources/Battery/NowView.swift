@@ -50,6 +50,10 @@ struct NowView: View {
                     LiveTrace(trace: monitor.trace, now: monitor.now, limit: reading.adapterWatts)
                         .frame(height: width == .narrow ? 130 : 150)
                 }
+            } else if width == .wide {
+                Block(title: "Drain by hour", note: "what time left is worked out from") {
+                    HourProfile(rates: monitor.analysis.drainByHour, now: monitor.now).frame(height: 150)
+                }
             }
             if let reading {
                 Block(title: "Right now") { Details(reading: reading, analysis: monitor.analysis, now: monitor.now) }
@@ -104,11 +108,11 @@ struct Headline: View {
             let target = forecast.target < 100 ? "\(Int(forecast.target))% by" : "full by"
             let by = Text(Format.glue("· \(target)")).foregroundStyle(Ink.secondary)
             let when = Text(Format.glue(Format.time(forecast.date))).foregroundStyle(Ink.charge)
-            return Text("\(lead) \(by)\u{00A0}\(when)")
+            return Text("\(lead)\u{00A0}\(by)\u{00A0}\(when)")
         case .held:
-            return Text("Held at \(percent.foregroundStyle(Ink.amber)) \(Text(Format.glue("· on the charger")).foregroundStyle(Ink.secondary))")
+            return Text("Held at \(percent.foregroundStyle(Ink.amber))\u{00A0}\(Text(Format.glue("· on the charger")).foregroundStyle(Ink.secondary))")
         case .full:
-            return Text("Full \(Text(Format.glue("· on the charger")).foregroundStyle(Ink.secondary))")
+            return Text("Full\u{00A0}\(Text(Format.glue("· on the charger")).foregroundStyle(Ink.secondary))")
         case .battery:
             let lead = percent.foregroundStyle(Ink.levelAccent(reading.percent))
             guard let forecast else { return Text("\(lead) on battery") }
@@ -122,7 +126,7 @@ struct Headline: View {
             var parts = [Format.charger(reading.adapterName, watts: reading.adapterWatts, wireless: reading.wireless)]
             if let forecast { parts.append("\(Format.duration(forecast.date.timeIntervalSince(reading.date))) to go") }
             if let session = analysis.sessions.last, session.ongoing { parts.append("plugged in at \(Format.time(session.start))") }
-            return parts.joined(separator: " · ")
+            return parts.joined(separator: "\u{00A0}· ")
         case .held:
             return "Optimized Charging or the charge limit is holding it there"
         case .full:
@@ -131,12 +135,12 @@ struct Headline: View {
             guard let forecast else { return "Leave it running a while to learn how it drains" }
             let range = "most likely between \(Format.time(forecast.early)) and \(Format.time(forecast.late))"
             guard let low = forecast.low else { return range.prefix(1).uppercased() + range.dropFirst() }
-            return "20% around \(Format.when(low, now: now)) · \(range)"
+            return "20% around \(Format.when(low, now: now))\u{00A0}· \(range)"
         }
     }
 }
 
-/// The four figures in a row, or two by two on the narrow screen.
+/// The four figures that matter right now.
 struct Figures: View {
     var reading: Reading
     var forecast: Forecast?
@@ -145,40 +149,14 @@ struct Figures: View {
     var width: Width
 
     var body: some View {
-        VStack(spacing: 0) {
-            Divided()
-            if width == .narrow {
-                Grid(horizontalSpacing: 0, verticalSpacing: 0) {
-                    GridRow { cell(level, trailing: true); cell(power, trailing: false) }
-                    GridRow { Divided().gridCellColumns(2) }
-                    GridRow { cell(heat, trailing: true); cell(healthStat, trailing: false) }
-                }
-            } else {
-                HStack(spacing: 0) {
-                    cell(level, trailing: true)
-                    cell(power, trailing: true)
-                    cell(heat, trailing: true)
-                    cell(healthStat, trailing: false)
-                }
-                .fixedSize(horizontal: false, vertical: true)
-            }
-            Divided()
-        }
-    }
-
-    private func cell(_ content: some View, trailing: Bool) -> some View {
-        HStack(spacing: 0) {
-            content.padding(.vertical, 22).padding(.horizontal, width == .wide ? 22 : 14)
-            if trailing { Divided(vertical: true) }
-        }
-        .frame(maxHeight: .infinity, alignment: .top)
+        FigureRow(width: width) { level; power; heat; healthStat }
     }
 
     private var level: some View {
         let charging = reading.state.pluggedIn
         return Stat(label: "Level", value: "\(Int(reading.percent))", unit: "%",
                     color: charging ? Ink.charge : Ink.level(reading.percent),
-                    caption: levelCaption, size: width.figure) {
+                    caption: levelCaption) {
             SegmentBar(value: reading.percent / 100, projected: forecast.flatMap { $0.target > 0 ? $0.target / 100 : nil },
                        color: charging ? Ink.charge : Ink.levelAccent(reading.percent))
         }
@@ -195,8 +173,7 @@ struct Figures: View {
         if reading.state.pluggedIn {
             let watts = reading.inputWatts ?? reading.batteryWatts ?? 0
             Stat(label: "Charger", value: Format.watts(watts), unit: "W", color: Ink.charge,
-                 caption: reading.batteryWatts.map { "\(Format.watts($0)) W into the battery" } ?? "No current in",
-                 size: width.figure) {
+                 caption: reading.batteryWatts.map { "\(Format.watts($0)) W into the battery" } ?? "No current in") {
                 SegmentBar(value: watts / max(reading.adapterWatts ?? 30, 5), segments: 4, color: Ink.charge)
             }
         } else {
@@ -204,7 +181,7 @@ struct Figures: View {
             let usual = analysis.drainByHour[hour]
             let current = analysis.drains.last.flatMap { $0.hours > 0.5 ? $0.rate : nil } ?? usual
             Stat(label: "Drain", value: String(format: "%.1f", current), unit: "% an hour", color: Ink.brand,
-                 caption: "Usually \(String(format: "%.1f", usual))% at this hour", size: width.figure) {
+                 caption: "Usually \(String(format: "%.1f", usual))% at this hour") {
                 SegmentBar(value: current / 16, projected: usual / 16, segments: 4, color: Ink.brand)
             }
         }
@@ -214,8 +191,7 @@ struct Figures: View {
         let battery = reading.batteryTemp
         return Stat(label: "Battery heat", value: battery.map { String(format: "%.1f", $0) } ?? "–", unit: "°C",
                     color: battery.map(Ink.temperature) ?? Ink.primary,
-                    caption: reading.chipTemp.map { "Chip \(Format.degrees($0)) · \(thermal)" } ?? thermal.capitalized,
-                    size: width.figure) {
+                    caption: reading.chipTemp.map { "Chip \(Format.degrees($0))\u{00A0}· \(thermal)" } ?? thermal.capitalized) {
             SegmentBar(value: ((battery ?? 20) - 20) / 25, segments: 5,
                        color: battery.map { $0 >= 38 ? Ink.temperature($0) : Ink.primary.opacity(0.7) } ?? Ink.track)
         }
@@ -230,8 +206,8 @@ struct Figures: View {
              color: (health?.maximumCapacity ?? 100) < 80 ? Ink.bad : Ink.primary,
              caption: health.map { record in
                  [record.cycles.map { "\($0) cycles" }, Optional(record.date.formatted(.dateTime.month(.abbreviated).day()))]
-                     .compactMap { $0 }.joined(separator: " · ")
-             } ?? "Share Analytics in Health", size: width.figure) {
+                     .compactMap { $0 }.joined(separator: "\u{00A0}· ")
+             } ?? "Share Analytics in Health") {
             SegmentBar(value: (health?.maximumCapacity ?? 0) / 100, segments: 5, color: Ink.primary.opacity(0.7))
         }
     }
@@ -263,13 +239,13 @@ struct Details: View {
         if reading.state.pluggedIn {
             if let v = reading.volts, let a = reading.amps { rows.append(("Input", String(format: "%.2f V × %.2f A", v, a))) }
             if let session = analysis.sessions.last, session.ongoing {
-                rows.append(("This charge", "+\(Int(max(reading.percent - session.from, 0)))% in \(Format.duration(now.timeIntervalSince(session.start)))"))
+                rows.append(("This charge", "+\(Int(max(reading.percent - session.from, 0)))% in \(Format.duration(session.duration))"))
             }
         } else if let drain = analysis.drains.last {
             rows.append(("Unplugged", "\(Format.when(drain.start, now: now)) at \(Int(drain.from))%"))
             rows.append(("Used since", "\(Int(max(drain.from - reading.percent, 0)))% in \(Format.duration(now.timeIntervalSince(drain.start)))"))
         }
-        if let capacity = analysis.capacity { rows.append(("Holds", String(format: "%.1f Wh, learned", capacity))) }
+        if let capacity = analysis.capacity { rows.append(("Learned capacity", String(format: "%.1f Wh", capacity))) }
         rows.append(("Low Power Mode", reading.lowPower ? "On" : "Off"))
         return rows
     }

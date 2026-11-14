@@ -46,12 +46,12 @@ struct Stat<Bar: View>: View {
     var unit: String
     var color: Color
     var caption: String
-    var size: CGFloat = 40
     @ViewBuilder var bar: Bar
+    @Environment(\.figureSize) private var size
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(label).font(.label).foregroundStyle(Ink.primary)
+            Text(label).font(.label).foregroundStyle(Ink.primary).lineLimit(1)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(value)
                     .font(.figure(size))
@@ -62,13 +62,71 @@ struct Stat<Bar: View>: View {
             }
             .lineLimit(1)
             bar
+            // Wraps to the cell's width, so it never decides how wide the cell has to be.
             Text(caption).font(.label).foregroundStyle(Ink.secondary).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                .frame(minWidth: 0, idealWidth: 0, maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
-/// A titled block: a small heading with an optional note beside it, then its content.
+extension EnvironmentValues {
+    @Entry var figureSize: CGFloat = 40
+}
+
+/// Headline figures in a row between hairlines: four across at full size, smaller if only that fits, else two by two.
+struct FigureRow<Content: View>: View {
+    var width: Width
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        Group(subviews: content) { cells in
+            VStack(spacing: 0) {
+                Divided()
+                if width == .narrow {
+                    grid(cells)
+                } else {
+                    ViewThatFits(in: .horizontal) {
+                        row(cells).environment(\.figureSize, width.figure)
+                        row(cells).environment(\.figureSize, 30)
+                        grid(cells)
+                    }
+                }
+                Divided()
+            }
+        }
+    }
+
+    private func row(_ cells: SubviewsCollection) -> some View {
+        HStack(spacing: 0) {
+            ForEach(cells.indices, id: \.self) { i in cell(cells[i], trailing: i < cells.count - 1) }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func grid(_ cells: SubviewsCollection) -> some View {
+        Grid(horizontalSpacing: 0, verticalSpacing: 0) {
+            ForEach(Array(stride(from: 0, to: cells.count, by: 2)), id: \.self) { start in
+                if start > 0 { GridRow { Divided().gridCellColumns(2) } }
+                GridRow {
+                    cell(cells[start], trailing: true)
+                    if start + 1 < cells.count { cell(cells[start + 1], trailing: false) }
+                }
+            }
+        }
+        .environment(\.figureSize, 36)
+    }
+
+    private func cell(_ content: Subview, trailing: Bool) -> some View {
+        HStack(spacing: 0) {
+            content.padding(.vertical, 22).padding(.horizontal, width == .wide ? 22 : 14)
+            if trailing { Divided(vertical: true) }
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+    }
+}
+
+/// A titled block: a small heading with an optional note after it, wrapping as one line of text, then its content.
 struct Block<Content: View>: View {
     var title: String
     var note: String?
@@ -76,24 +134,16 @@ struct Block<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) { heading; noteText }
-                VStack(alignment: .leading, spacing: 3) { heading; noteText }
-            }
+            heading.fixedSize(horizontal: false, vertical: true)
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
-}
 
-extension Block {
-    private var heading: some View {
-        Text(title).font(.system(size: 15, weight: .medium)).foregroundStyle(Ink.primary).fixedSize()
-    }
-
-    @ViewBuilder
-    private var noteText: some View {
-        if let note { Text(note).font(.label).foregroundStyle(Ink.secondary).fixedSize() }
+    private var heading: Text {
+        let title = Text(title).font(.system(size: 15, weight: .medium)).foregroundStyle(Ink.primary)
+        guard let note else { return title }
+        return Text("\(title)  \(Text(note).font(.label).foregroundStyle(Ink.secondary))")
     }
 }
 
@@ -104,7 +154,7 @@ struct Card<Content: View>: View {
     var body: some View {
         content
             .padding(20)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
             .background(Ink.card, in: .rect(cornerRadius: 22))
             .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(Ink.line, lineWidth: 1))
     }

@@ -6,7 +6,7 @@ import SwiftUI
 struct HistoryView: View {
     @Environment(Monitor.self) private var monitor
     var width: Width
-    @State private var range = Range.week
+    @State private var range = Range.allCases.first { $0.rawValue.lowercased().hasPrefix(Demo.range ?? "week") } ?? .week
 
     enum Range: String, CaseIterable, Identifiable {
         case day = "Day", week = "Week", month = "4 Weeks"
@@ -37,7 +37,7 @@ struct HistoryView: View {
                 }
             }
             pair {
-                Block(title: "Use per day", note: perDay(analysis).map { "two weeks · average \($0)%" } ?? "two weeks") {
+                Block(title: "Use per day", note: perDay(analysis).map { "two weeks\u{00A0}· average \($0)%" } ?? "two weeks") {
                     DayBars(days: analysis.days, now: monitor.now).frame(height: 170)
                     HStack(spacing: 16) {
                         Key(name: "Used") { RoundedRectangle(cornerRadius: 2).fill(Ink.brand) }
@@ -59,7 +59,9 @@ struct HistoryView: View {
                 }
             }
             ScreenTimeBlock(now: monitor.now)
-            Block(title: "Charges", note: "\(analysis.sessions.count) in six weeks") {
+            Block(title: "Charges", note: analysis.sessions.first.map {
+                "\(analysis.sessions.count) since \($0.start.formatted(.dateTime.month(.abbreviated).day()))"
+            }) {
                 VStack(spacing: 0) {
                     Divided()
                     ForEach(analysis.sessions.reversed().prefix(30)) { ChargeRow(session: $0, now: monitor.now, width: width) }
@@ -87,7 +89,7 @@ struct HistoryView: View {
         let week = analysis.sessions.filter { monitor.now.timeIntervalSince($0.start) < 7 * 86400 }.count
         let lasts = 100 / analysis.averageDrain
         return VStack(alignment: .leading, spacing: 8) {
-            Text("A full charge lasts about \(Text(Format.glue("\(Int(lasts.rounded())) h")).foregroundStyle(Ink.brand)) \(Text(Format.glue("· \(week) charges this week")).foregroundStyle(Ink.secondary))")
+            Text("A full charge lasts about \(Text(Format.glue("\(Int(lasts.rounded())) h")).foregroundStyle(Ink.brand))\u{00A0}\(Text(Format.glue("· \(week) charges this week")).foregroundStyle(Ink.secondary))")
                 .font(.system(size: width == .narrow ? 30 : 38))
                 .tracking(-0.6)
                 .foregroundStyle(Ink.primary)

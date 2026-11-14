@@ -13,6 +13,7 @@ struct BatteryApp: App {
                 .environment(monitor)
                 .onChange(of: phase, initial: true) { _, phase in monitor.setActive(phase == .active) }
                 .onAppear { Hangar.running() }
+                .task { Demo.drawn() }
         }
         .backgroundTask(.appRefresh(BackgroundRefresh.identifier)) {
             await MainActor.run { BackgroundRefresh.schedule() }

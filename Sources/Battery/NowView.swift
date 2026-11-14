@@ -1,3 +1,4 @@
+import Design
 import SwiftUI
 
 /// The battery right now: what it's doing in one sentence, the four figures that matter, today's level with the

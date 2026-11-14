@@ -1,3 +1,4 @@
+import Design
 import SwiftUI
 
 /// A track in segments, filled up to `value` and striped from there to `projected`, like BROADCOM's limit bars.

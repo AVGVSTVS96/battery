@@ -12,6 +12,14 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     MARKETING_VERSION: "0.1.0"
 targets:
+  Design:
+    type: framework
+    platform: iOS
+    sources: [Sources/Design]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.shahidy.battery.design
+        GENERATE_INFOPLIST_FILE: YES
   Battery:
     type: application
     platform: iOS
@@ -19,6 +27,8 @@ targets:
       - path: Sources/Battery
         excludes: [Metadata.appintents]
       - path: App/Assets.xcassets
+    dependencies:
+      - target: Design
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shahidy.battery

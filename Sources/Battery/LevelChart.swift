@@ -1,4 +1,5 @@
 import Charts
+import Design
 import SwiftUI
 
 /// The battery's level over a stretch of time, charges shaded under it, and, from now, the forecast as a dashed line

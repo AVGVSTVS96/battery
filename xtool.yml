@@ -7,3 +7,8 @@ iconPath: App/Icon.png
 skipLSP: true
 resources:
   - Sources/Battery/Metadata.appintents
+extensions:
+  - product: ScreenTime
+    bundleID: com.shahidy.battery.screentime
+    infoPath: App/ScreenTime-Info.plist
+    entitlementsPath: App/ScreenTime.entitlements

@@ -1,3 +1,4 @@
+import Design
 import SwiftUI
 
 /// The past: the level over a day, a week or four, use and charge per day, when you charge, how drain runs through
@@ -55,6 +56,7 @@ struct HistoryView: View {
                     ChargeSpeed(minutes: analysis.chargeMinutes).frame(height: 150)
                 }
             }
+            ScreenTimeBlock(now: monitor.now)
             Block(title: "Charges", note: "\(analysis.sessions.count) in six weeks") {
                 VStack(spacing: 0) {
                     Divided()

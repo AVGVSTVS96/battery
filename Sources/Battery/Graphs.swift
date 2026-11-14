@@ -1,4 +1,5 @@
 import Charts
+import Design
 import SwiftUI
 
 /// The charger's watts, second by second over the last two minutes.

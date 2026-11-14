@@ -31,17 +31,13 @@ struct NowView: View {
     }
 
     private func today(_ forecast: Forecast?) -> some View {
-        Block(title: "Today", note: forecast.map { $0.target > 0 ? "and the charge ahead" : "and the hours ahead" }) {
-            LevelChart(samples: monitor.samples, forecast: forecast, spread: monitor.analysis.drainSpread,
-                       now: monitor.now, past: 18 * 3600, height: width == .narrow ? 200 : 250)
-            HStack(spacing: 16) {
-                Key(name: "Level") { Capsule().fill(Ink.primary).frame(height: 2) }
-                Key(name: "Charging") { RoundedRectangle(cornerRadius: 2).fill(Ink.charge.opacity(0.25)) }
-                Key(name: "Held") { Hatch(spacing: 3).stroke(Ink.amber, lineWidth: 1).clipShape(.rect(cornerRadius: 2)) }
-                Key(name: "Forecast") {
-                    Capsule().stroke(style: StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
-                        .foregroundStyle(forecast.map { $0.target > 0 ? Ink.charge : Ink.brand } ?? Ink.brand).frame(height: 1)
-                }
+        // Enough of the past for context, while the forecast keeps a fair share of the width.
+        let ahead = forecast.map { $0.date.timeIntervalSince(monitor.now) } ?? 0
+        let past = min(max(ahead * 3, 5 * 3600), 18 * 3600)
+        return Card {
+            Block(title: "Today", note: forecast.map { $0.target > 0 ? "and the charge ahead" : "and the hours ahead" }) {
+                LevelChart(samples: monitor.samples, forecast: forecast, spread: monitor.analysis.drainSpread,
+                           now: monitor.now, past: past, height: width == .narrow ? 200 : 250)
             }
         }
     }
@@ -105,17 +101,18 @@ struct Headline: View {
             let watts = (reading.inputWatts ?? reading.batteryWatts).map { Text("\(Format.watts($0)) W").foregroundStyle(Ink.charge) }
             let lead = watts.map { Text("Charging at \($0)") } ?? Text("Charging \(percent.foregroundStyle(Ink.charge))")
             guard let forecast else { return lead }
-            let when = Text(Format.time(forecast.date)).foregroundStyle(Ink.brand)
             let target = forecast.target < 100 ? "\(Int(forecast.target))% by" : "full by"
-            return Text("\(lead) \(Text("· \(target)").foregroundStyle(Ink.secondary)) \(when)")
+            let by = Text(Format.glue("· \(target)")).foregroundStyle(Ink.secondary)
+            let when = Text(Format.glue(Format.time(forecast.date))).foregroundStyle(Ink.charge)
+            return Text("\(lead) \(by)\u{00A0}\(when)")
         case .held:
-            return Text("Held at \(percent.foregroundStyle(Ink.amber)) \(Text("· on the charger").foregroundStyle(Ink.secondary))")
+            return Text("Held at \(percent.foregroundStyle(Ink.amber)) \(Text(Format.glue("· on the charger")).foregroundStyle(Ink.secondary))")
         case .full:
-            return Text("Full \(Text("· on the charger").foregroundStyle(Ink.secondary))")
+            return Text("Full \(Text(Format.glue("· on the charger")).foregroundStyle(Ink.secondary))")
         case .battery:
             let lead = percent.foregroundStyle(Ink.levelAccent(reading.percent))
             guard let forecast else { return Text("\(lead) on battery") }
-            return Text("\(lead) lasts until \(Text(Format.when(forecast.date, now: now)).foregroundStyle(Ink.brand))")
+            return Text("\(lead) lasts until \(Text(Format.glue(Format.when(forecast.date, now: now))).foregroundStyle(Ink.brand))")
         }
     }
 
@@ -171,17 +168,17 @@ struct Figures: View {
 
     private func cell(_ content: some View, trailing: Bool) -> some View {
         HStack(spacing: 0) {
-            content.padding(.vertical, 22).padding(.horizontal, width == .narrow ? 14 : 22)
+            content.padding(.vertical, 22).padding(.horizontal, width == .wide ? 22 : 14)
             if trailing { Divided(vertical: true) }
         }
-        .frame(maxHeight: .infinity)
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 
     private var level: some View {
         let charging = reading.state.pluggedIn
         return Stat(label: "Level", value: "\(Int(reading.percent))", unit: "%",
                     color: charging ? Ink.charge : Ink.level(reading.percent),
-                    caption: levelCaption) {
+                    caption: levelCaption, size: width.figure) {
             SegmentBar(value: reading.percent / 100, projected: forecast.flatMap { $0.target > 0 ? $0.target / 100 : nil },
                        color: charging ? Ink.charge : Ink.levelAccent(reading.percent))
         }
@@ -198,7 +195,8 @@ struct Figures: View {
         if reading.state.pluggedIn {
             let watts = reading.inputWatts ?? reading.batteryWatts ?? 0
             Stat(label: "Charger", value: Format.watts(watts), unit: "W", color: Ink.charge,
-                 caption: reading.batteryWatts.map { "\(Format.watts($0)) W into the battery" } ?? "No current in") {
+                 caption: reading.batteryWatts.map { "\(Format.watts($0)) W into the battery" } ?? "No current in",
+                 size: width.figure) {
                 SegmentBar(value: watts / max(reading.adapterWatts ?? 30, 5), segments: 4, color: Ink.charge)
             }
         } else {
@@ -206,7 +204,7 @@ struct Figures: View {
             let usual = analysis.drainByHour[hour]
             let current = analysis.drains.last.flatMap { $0.hours > 0.5 ? $0.rate : nil } ?? usual
             Stat(label: "Drain", value: String(format: "%.1f", current), unit: "% an hour", color: Ink.brand,
-                 caption: "Usual at this hour: \(String(format: "%.1f", usual))%") {
+                 caption: "Usually \(String(format: "%.1f", usual))% at this hour", size: width.figure) {
                 SegmentBar(value: current / 16, projected: usual / 16, segments: 4, color: Ink.brand)
             }
         }
@@ -216,7 +214,8 @@ struct Figures: View {
         let battery = reading.batteryTemp
         return Stat(label: "Battery heat", value: battery.map { String(format: "%.1f", $0) } ?? "–", unit: "°C",
                     color: battery.map(Ink.temperature) ?? Ink.primary,
-                    caption: reading.chipTemp.map { "Chip \(Format.degrees($0)) · \(thermal)" } ?? thermal.capitalized) {
+                    caption: reading.chipTemp.map { "Chip \(Format.degrees($0)) · \(thermal)" } ?? thermal.capitalized,
+                    size: width.figure) {
             SegmentBar(value: ((battery ?? 20) - 20) / 25, segments: 5,
                        color: battery.map { $0 >= 38 ? Ink.temperature($0) : Ink.primary.opacity(0.7) } ?? Ink.track)
         }
@@ -232,7 +231,7 @@ struct Figures: View {
              caption: health.map { record in
                  [record.cycles.map { "\($0) cycles" }, Optional(record.date.formatted(.dateTime.month(.abbreviated).day()))]
                      .compactMap { $0 }.joined(separator: " · ")
-             } ?? "Share Analytics in Health") {
+             } ?? "Share Analytics in Health", size: width.figure) {
             SegmentBar(value: (health?.maximumCapacity ?? 0) / 100, segments: 5, color: Ink.primary.opacity(0.7))
         }
     }
@@ -262,9 +261,7 @@ struct Details: View {
     private var rows: [(String, String)] {
         var rows: [(String, String)] = []
         if reading.state.pluggedIn {
-            rows.append(("Charger", Format.charger(reading.adapterName, watts: reading.adapterWatts, wireless: reading.wireless)))
             if let v = reading.volts, let a = reading.amps { rows.append(("Input", String(format: "%.2f V × %.2f A", v, a))) }
-            if let b = reading.batteryWatts { rows.append(("Into the battery", "\(Format.watts(b)) W")) }
             if let session = analysis.sessions.last, session.ongoing {
                 rows.append(("This charge", "+\(Int(max(reading.percent - session.from, 0)))% in \(Format.duration(now.timeIntervalSince(session.start)))"))
             }
@@ -273,7 +270,6 @@ struct Details: View {
             rows.append(("Used since", "\(Int(max(drain.from - reading.percent, 0)))% in \(Format.duration(now.timeIntervalSince(drain.start)))"))
         }
         if let capacity = analysis.capacity { rows.append(("Holds", String(format: "%.1f Wh, learned", capacity))) }
-        if let chip = reading.chipTemp { rows.append(("Chip", Format.degrees(chip))) }
         rows.append(("Low Power Mode", reading.lowPower ? "On" : "Off"))
         return rows
     }

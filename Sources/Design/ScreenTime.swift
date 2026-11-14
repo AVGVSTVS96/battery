@@ -111,7 +111,7 @@ nonisolated public struct ScreenTimeView: View {
                 .padding(stacked ? .vertical : .horizontal, 18)
             VStack(alignment: .leading, spacing: 10) {
                 Text("Pickups").font(.label).foregroundStyle(Ink.primary)
-                Text("\(today?.pickups ?? 0)").font(.figure(44)).tracking(-1).foregroundStyle(Ink.primary)
+                Text("\(today?.pickups ?? 0)").font(.figure(40)).tracking(-0.8).foregroundStyle(Ink.primary)
                 Text(today?.firstPickup.map { "First at \($0.formatted(.dateTime.hour().minute()))" } ?? "None yet")
                     .font(.label).foregroundStyle(Ink.secondary).lineLimit(1).minimumScaleFactor(0.85)
             }
@@ -126,10 +126,10 @@ nonisolated public struct ScreenTimeView: View {
             Text(label).font(.label).foregroundStyle(Ink.primary)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 if minutes >= 60 {
-                    Text("\(minutes / 60)").font(.figure(44)).tracking(-1).foregroundStyle(Ink.violet)
+                    Text("\(minutes / 60)").font(.figure(40)).tracking(-0.8).foregroundStyle(Ink.violet)
                     Text("h").font(.label).foregroundStyle(Ink.secondary).padding(.trailing, 6)
                 }
-                Text("\(minutes % 60)").font(.figure(44)).tracking(-1).foregroundStyle(Ink.violet)
+                Text("\(minutes % 60)").font(.figure(40)).tracking(-0.8).foregroundStyle(Ink.violet)
                 Text("m").font(.label).foregroundStyle(Ink.secondary)
             }
             .lineLimit(1)
@@ -172,7 +172,7 @@ nonisolated public struct ScreenTimeView: View {
         }
         .chartXAxis {
             AxisMarks(values: .stride(by: .day)) { value in
-                AxisValueLabel {
+                AxisValueLabel(centered: true) {
                     if let date = value.as(Date.self) {
                         Text(date.formatted(.dateTime.weekday(.narrow))).font(.small)
                             .foregroundStyle(calendar.isDate(date, inSameDayAs: screenTime.now) ? Ink.primary : Ink.faint)
@@ -187,7 +187,8 @@ nonisolated public struct ScreenTimeView: View {
         let hour = Calendar.current.component(.hour, from: screenTime.now)
         return Chart {
             ForEach(0..<24, id: \.self) { h in
-                BarMark(x: .value("Hour", h), y: .value("Minutes", (h < screenTime.hours.count ? screenTime.hours[h] : 0) / 60), width: .ratio(0.7))
+                BarMark(xStart: .value("From", Double(h) - 0.35), xEnd: .value("To", Double(h) + 0.35),
+                        y: .value("Minutes", (h < screenTime.hours.count ? screenTime.hours[h] : 0) / 60))
                     .foregroundStyle(h == hour ? Ink.violet : Ink.primary.opacity(0.22))
                     .clipShape(.rect(cornerRadius: 2))
             }

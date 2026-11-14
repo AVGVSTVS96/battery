@@ -24,18 +24,20 @@ struct HistoryView: View {
         let analysis = monitor.analysis
         VStack(alignment: .leading, spacing: 32) {
             headline(analysis)
-            Block(title: "Level") {
-                Picker("Range", selection: $range) {
-                    ForEach(Range.allCases) { Text($0.rawValue).tag($0) }
+            Card {
+                Block(title: "Level") {
+                    Picker("Range", selection: $range) {
+                        ForEach(Range.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 320)
+                    LevelChart(samples: monitor.samples, forecast: nil, spread: analysis.drainSpread, now: monitor.now,
+                               past: range.seconds, height: width == .narrow ? 200 : 240)
+                        .animation(.smooth(duration: 0.35), value: range)
                 }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 320)
-                LevelChart(samples: monitor.samples, forecast: nil, spread: analysis.drainSpread, now: monitor.now,
-                           past: range.seconds, height: width == .narrow ? 200 : 240)
-                    .animation(.smooth(duration: 0.35), value: range)
             }
             pair {
-                Block(title: "Use per day", note: "used and charged, two weeks") {
+                Block(title: "Use per day", note: perDay(analysis).map { "two weeks · average \($0)%" } ?? "two weeks") {
                     DayBars(days: analysis.days, now: monitor.now).frame(height: 170)
                     HStack(spacing: 16) {
                         Key(name: "Used") { RoundedRectangle(cornerRadius: 2).fill(Ink.brand) }
@@ -75,19 +77,23 @@ struct HistoryView: View {
         }
     }
 
-    private func headline(_ analysis: Analysis) -> some View {
+    private func perDay(_ analysis: Analysis) -> Int? {
         let used = analysis.days.dropLast().map(\.used).filter { $0 > 0 }
-        let perDay = used.isEmpty ? nil : used.reduce(0, +) / Double(used.count)
+        return used.isEmpty ? nil : Int((used.reduce(0, +) / Double(used.count)).rounded())
+    }
+
+    private func headline(_ analysis: Analysis) -> some View {
+        let perDay = perDay(analysis)
         let week = analysis.sessions.filter { monitor.now.timeIntervalSince($0.start) < 7 * 86400 }.count
         let lasts = 100 / analysis.averageDrain
         return VStack(alignment: .leading, spacing: 8) {
-            Text("A full charge lasts about \(Text("\(Int(lasts.rounded())) h").foregroundStyle(Ink.brand)) \(Text("· \(week) charges this week").foregroundStyle(Ink.secondary))")
+            Text("A full charge lasts about \(Text(Format.glue("\(Int(lasts.rounded())) h")).foregroundStyle(Ink.brand)) \(Text(Format.glue("· \(week) charges this week")).foregroundStyle(Ink.secondary))")
                 .font(.system(size: width == .narrow ? 30 : 38))
                 .tracking(-0.6)
                 .foregroundStyle(Ink.primary)
                 .fixedSize(horizontal: false, vertical: true)
             if let perDay {
-                Text("You use \(Int(perDay.rounded()))% a day on average, \(String(format: "%.1f", analysis.averageDrain))% an hour off the charger")
+                Text("You use \(perDay)% a day on average, \(String(format: "%.1f", analysis.averageDrain))% an hour off the charger")
                     .font(.system(size: 15)).foregroundStyle(Ink.secondary)
             }
         }

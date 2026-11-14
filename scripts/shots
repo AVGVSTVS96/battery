@@ -7,7 +7,7 @@
 # Usage: scripts/shots [scene…], each scene `<demo>:<page>[@<scroll offset>]`
 set -euo pipefail
 cd "$(dirname "$0")/.."
-[ $# -gt 0 ] || set -- charging:now battery:now charging:now@760 charging:history charging:history@820 charging:history@1500 charging:health
+[ $# -gt 0 ] || set -- charging:now battery:now charging:now@760 charging:history charging:history@820 charging:history@1500 charging:history@2100 charging:history@2700 charging:health
 scenes=("$@")
 xcodegen -q
 xcodebuild -project Battery.xcodeproj -scheme Battery -destination 'generic/platform=iOS Simulator' -derivedDataPath build build -quiet
@@ -29,7 +29,7 @@ shoot() { # pose display scene appearance
   xcrun simctl ui "$id" appearance "$4"
   xcrun simctl terminate "$id" com.shahidy.battery 2>/dev/null || true
   xcrun simctl launch "$id" com.shahidy.battery -demo "$demo" -page "$page" -offset "$offset" >/dev/null
-  sleep 3
+  sleep 5
   local name="$1-$demo-$page"
   [ "$offset" = 0 ] || name+="-$offset"
   xcrun simctl io "$id" screenshot --display="$2" "shots/$name-$4.png" >/dev/null 2>&1

@@ -1,6 +1,11 @@
 import Foundation
 
 enum Format {
+    /// Keeps a phrase on one line, so a headline breaks between phrases, never inside one.
+    static func glue(_ phrase: String) -> String {
+        phrase.replacingOccurrences(of: " ", with: "\u{00A0}")
+    }
+
     static func time(_ date: Date) -> String {
         date.formatted(.dateTime.hour().minute())
     }

@@ -22,18 +22,39 @@ struct LevelChart: View {
     var body: some View {
         let start = now.addingTimeInterval(-past)
         let history = Analysis.thin(points(since: start), to: 360)
-        let ahead = forecast.map { min($0.date, now.addingTimeInterval(max(past * 0.6, 4 * 3600))) } ?? now
-        let end = max(ahead, now.addingTimeInterval(past * 0.08))
-        let path = (forecast?.path ?? []).filter { $0.date <= end }
+        let ahead = forecast.map { min($0.date, now.addingTimeInterval(2 * 86400)) } ?? now
+        let path = (forecast?.path ?? []).filter { $0.date <= ahead }
+        let end = max(ahead.addingTimeInterval(ahead.timeIntervalSince(start) * 0.1), now.addingTimeInterval(past * 0.04))
         let charging = forecast.map { $0.target > 0 } ?? false
         let tint = charging ? Ink.charge : Ink.brand
         let spans = spans(since: start)
 
+        VStack(alignment: .leading, spacing: 12) {
+            chart(start: start, end: end, ahead: ahead, history: history, path: path, spans: spans, charging: charging, tint: tint)
+            HStack(spacing: 16) {
+                Key(name: "Level") { Capsule().fill(Ink.primary).frame(height: 2) }
+                if spans.contains(where: { !$0.held }) {
+                    Key(name: "Charging") { RoundedRectangle(cornerRadius: 2).fill(Ink.charge.opacity(0.14)) }
+                }
+                if spans.contains(where: \.held) {
+                    Key(name: "Held") { Hatch(spacing: 3).stroke(Ink.amber, lineWidth: 1).clipShape(.rect(cornerRadius: 2)) }
+                }
+                if !path.isEmpty {
+                    Key(name: "Forecast") {
+                        Capsule().stroke(style: StrokeStyle(lineWidth: 1.5, dash: [3, 3])).foregroundStyle(tint).frame(height: 1)
+                    }
+                }
+            }
+        }
+    }
+
+    private func chart(start: Date, end: Date, ahead: Date, history: [Point], path: [Point], spans: [Span], charging: Bool,
+                       tint: Color) -> some View {
         Chart {
             ForEach(spans) { span in
                 RectangleMark(xStart: .value("From", span.start), xEnd: .value("To", span.end),
                               yStart: .value("Low", 0), yEnd: .value("High", 100))
-                    .foregroundStyle(span.held ? Ink.amber.opacity(0.10) : Ink.charge.opacity(0.10))
+                    .foregroundStyle(span.held ? Ink.amber.opacity(0.10) : Ink.charge.opacity(0.14))
             }
             ForEach(history, id: \.date) { point in
                 AreaMark(x: .value("Time", point.date), yStart: .value("Floor", 0), yEnd: .value("Level", point.percent),
@@ -68,11 +89,11 @@ struct LevelChart: View {
                     .foregroundStyle(charging ? Ink.charge : Ink.primary)
                     .symbolSize(44)
             }
-            if let forecast, forecast.date <= end, let last = path.last {
+            if let forecast, forecast.date <= ahead, let last = path.last {
                 PointMark(x: .value("Done", forecast.date), y: .value("Level", last.percent))
                     .foregroundStyle(tint)
                     .symbolSize(36)
-                    .annotation(position: forecast.target > 0 ? .bottom : .top, alignment: .trailing, spacing: 6) {
+                    .annotation(position: forecast.target > 0 ? .bottomTrailing : .topTrailing, spacing: 4) {
                         Text(Format.time(forecast.date)).font(.small.weight(.medium)).foregroundStyle(tint)
                     }
             }
@@ -134,7 +155,23 @@ struct LevelChart: View {
                 spans.append(Span(start: from, end: b.t, held: held))
             }
         }
-        return spans
+        return Self.absorbBlips(spans)
+    }
+
+    /// A few minutes of charging inside a hold is the phone topping itself up, not a charge of its own.
+    private static func absorbBlips(_ spans: [Span]) -> [Span] {
+        var spans = spans
+        for i in spans.indices.dropFirst().dropLast() where !spans[i].held && spans[i - 1].held && spans[i + 1].held
+            && spans[i].end.timeIntervalSince(spans[i].start) < 900 {
+            spans[i].held = true
+        }
+        return spans.reduce(into: []) { merged, span in
+            if let last = merged.last, last.held == span.held, span.start.timeIntervalSince(last.end) < 600 {
+                merged[merged.count - 1].end = span.end
+            } else {
+                merged.append(span)
+            }
+        }
     }
 
     /// The likely range at a point of the forecast: the change so far, scaled by how fast or slow it usually runs.

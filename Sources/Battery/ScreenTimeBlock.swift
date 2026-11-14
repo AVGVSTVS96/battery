@@ -53,6 +53,7 @@ struct ScreenTimeBlock: View {
                     }
                 }
                 .buttonStyle(.glass)
+                .font(.label)
             }
         }
     }

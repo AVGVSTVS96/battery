@@ -23,7 +23,7 @@ struct HealthView: View {
             if width == .narrow {
                 VStack(alignment: .leading, spacing: 32) { share; recording(monitor) }
             } else {
-                HStack(alignment: .top, spacing: 24) { share; recording(monitor) }
+                HStack(alignment: .top, spacing: 24) { share; recording(monitor) }.fixedSize(horizontal: false, vertical: true)
             }
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.data, .text, .json]) { result in
@@ -38,9 +38,9 @@ struct HealthView: View {
         VStack(alignment: .leading, spacing: 8) {
             Group {
                 if let latest, let capacity = latest.maximumCapacity {
-                    Text("Battery health \(Text("\(Int(capacity))%").foregroundStyle(capacity < 80 ? Ink.bad : Ink.charge)) \(Text(latest.cycles.map { "· \($0) cycles" } ?? "").foregroundStyle(Ink.secondary))")
+                    Text("Battery health \(Text("\(Int(capacity))%").foregroundStyle(capacity < 80 ? Ink.bad : Ink.charge)) \(Text(Format.glue(change(to: capacity))).foregroundStyle(Ink.secondary))")
                 } else {
-                    Text("Battery health \(Text("· share an Analytics file").foregroundStyle(Ink.secondary))")
+                    Text("Battery health \(Text(Format.glue("· share an Analytics file")).foregroundStyle(Ink.secondary))")
                 }
             }
             .font(.system(size: width == .narrow ? 30 : 38))
@@ -53,6 +53,16 @@ struct HealthView: View {
         }
     }
 
+    /// "· down 2 points since Sep 12", or "· as new" with nothing to compare.
+    private func change(to capacity: Double) -> String {
+        guard let first = monitor.health.first, let start = first.maximumCapacity, monitor.health.count > 1 else {
+            return capacity >= 100 ? "· as new" : ""
+        }
+        let points = Int((start - capacity).rounded())
+        let since = first.date.formatted(.dateTime.month(.abbreviated).day())
+        return points > 0 ? "· down \(points) since \(since)" : "· steady since \(since)"
+    }
+
     private func figures(_ latest: HealthRecord?) -> some View {
         let analysis = monitor.analysis
         let hottest = analysis.sessions.filter { monitor.now.timeIntervalSince($0.start) < 7 * 86400 }.compactMap(\.hottest).max()
@@ -63,21 +73,24 @@ struct HealthView: View {
                 let cells: [AnyView] = [
                     AnyView(Stat(label: "Holds", value: latest?.rawMaxCapacity.map { "\(Int($0))" } ?? "–", unit: "mAh",
                                  color: Ink.primary,
-                                 caption: latest?.designCapacity.map { "of \(Int($0)) mAh new" } ?? "Needs an Analytics file") {
+                                 caption: latest?.designCapacity.map { "of \(Int($0)) mAh new" } ?? "Needs an Analytics file",
+                                 size: width.figure) {
                         SegmentBar(value: (latest?.rawMaxCapacity ?? 0) / max(latest?.designCapacity ?? 1, 1), segments: 5,
                                    color: Ink.charge)
                     }),
                     AnyView(Stat(label: "Cycles", value: latest?.cycles.map(String.init) ?? "–", unit: "",
                                  color: Ink.primary,
-                                 caption: first.flatMap { f in latest?.cycles.flatMap { l in f.cycles.map { "+\(l - $0) since \(f.date.formatted(.dateTime.month(.abbreviated).day()))" } } } ?? "Apple rates 1,000") {
+                                 caption: first.flatMap { f in latest?.cycles.flatMap { l in f.cycles.map { "+\(l - $0) since \(f.date.formatted(.dateTime.month(.abbreviated).day()))" } } } ?? "Apple rates 1,000",
+                                 size: width.figure) {
                         SegmentBar(value: Double(latest?.cycles ?? 0) / 1000, segments: 5, color: Ink.primary.opacity(0.7))
                     }),
                     AnyView(Stat(label: "Learned", value: analysis.capacity.map { String(format: "%.1f", $0) } ?? "–", unit: "Wh",
-                                 color: Ink.violet, caption: "From the energy charges put in") {
+                                 color: Ink.violet, caption: "From what charges put in", size: width.figure) {
                         SegmentBar(value: (analysis.capacity ?? 0) / 25, segments: 5, color: Ink.violet)
                     }),
                     AnyView(Stat(label: "Hottest charge", value: hottest.map { String(format: "%.1f", $0) } ?? "–", unit: "°C",
-                                 color: hottest.map(Ink.temperature) ?? Ink.primary, caption: "This week · ages it past 38°") {
+                                 color: hottest.map(Ink.temperature) ?? Ink.primary, caption: "This week; past 38° ages it",
+                                 size: width.figure) {
                         SegmentBar(value: ((hottest ?? 20) - 20) / 25, segments: 5,
                                    color: hottest.map { $0 >= 38 ? Ink.temperature($0) : Ink.primary.opacity(0.7) } ?? Ink.track)
                     }),
@@ -88,7 +101,7 @@ struct HealthView: View {
                     GridRow {
                         ForEach(0..<columns, id: \.self) { column in
                             HStack(spacing: 0) {
-                                cells[row * columns + column].padding(.vertical, 22).padding(.horizontal, width == .narrow ? 14 : 22)
+                                cells[row * columns + column].padding(.vertical, 22).padding(.horizontal, width == .wide ? 22 : 14)
                                 if column < columns - 1 { Divided(vertical: true) }
                             }
                         }
@@ -102,11 +115,17 @@ struct HealthView: View {
     private var share: some View {
         Card {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Share an Analytics file").font(.system(size: 15, weight: .medium)).foregroundStyle(Ink.primary)
-                VStack(alignment: .leading, spacing: 8) {
-                    step(1, "Settings › Privacy & Security › Analytics & Improvements › Analytics Data")
-                    step(2, "Open the newest Analytics file")
-                    step(3, "Share it to battery, or copy its text")
+                Text(monitor.health.isEmpty ? "Share an Analytics file" : "Add a newer Analytics file")
+                    .font(.system(size: 15, weight: .medium)).foregroundStyle(Ink.primary)
+                if monitor.health.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        step(1, "Settings › Privacy & Security › Analytics & Improvements › Analytics Data")
+                        step(2, "Open the newest Analytics file")
+                        step(3, "Share it to battery, or copy its text")
+                    }
+                } else {
+                    Text("Settings › Privacy & Security › Analytics & Improvements › Analytics Data, then share or copy the newest")
+                        .font(.label).foregroundStyle(Ink.secondary)
                 }
                 if let note { Text(note).font(.label).foregroundStyle(Ink.charge).transition(.opacity) }
                 HStack(spacing: 10) {
@@ -116,7 +135,7 @@ struct HealthView: View {
                     Button("Choose File", systemImage: "folder") { importing = true }
                 }
                 .buttonStyle(.glass)
-                .controlSize(.regular)
+                .font(.label)
             }
         }
     }
@@ -142,6 +161,7 @@ struct HealthView: View {
                     UIApplication.shared.open(URL(string: "shortcuts://")!)
                 }
                 .buttonStyle(.glass)
+                .font(.label)
                 Text("\(monitor.samples.count.formatted()) readings saved")
                     .font(.small).foregroundStyle(Ink.faint)
             }

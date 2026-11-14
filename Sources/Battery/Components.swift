@@ -26,7 +26,7 @@ struct SegmentBar: View {
                                 .frame(width: width * ahead)
                                 .clipShape(Capsule())
                         }
-                        Capsule().fill(color).frame(width: width * fill)
+                        Capsule().fill(color).frame(width: fill > 0 ? max(width * fill, height) : 0)
                     }
                     .frame(width: width)
                 }
@@ -46,6 +46,7 @@ struct Stat<Bar: View>: View {
     var unit: String
     var color: Color
     var caption: String
+    var size: CGFloat = 40
     @ViewBuilder var bar: Bar
 
     var body: some View {
@@ -53,18 +54,17 @@ struct Stat<Bar: View>: View {
             Text(label).font(.label).foregroundStyle(Ink.primary)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(value)
-                    .font(.figure(44))
-                    .tracking(-1)
+                    .font(.figure(size))
+                    .tracking(-0.8)
                     .foregroundStyle(color)
                     .contentTransition(.numericText())
                 Text(unit).font(.label).foregroundStyle(Ink.secondary)
             }
             .lineLimit(1)
-            .minimumScaleFactor(0.7)
             bar
-            Text(caption).font(.label).foregroundStyle(Ink.secondary).lineLimit(1).minimumScaleFactor(0.85)
+            Text(caption).font(.label).foregroundStyle(Ink.secondary).lineLimit(2).fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
@@ -76,13 +76,24 @@ struct Block<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(title).font(.system(size: 15, weight: .medium)).foregroundStyle(Ink.primary)
-                if let note { Text(note).font(.label).foregroundStyle(Ink.secondary).lineLimit(1) }
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) { heading; noteText }
+                VStack(alignment: .leading, spacing: 3) { heading; noteText }
             }
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+extension Block {
+    private var heading: some View {
+        Text(title).font(.system(size: 15, weight: .medium)).foregroundStyle(Ink.primary).fixedSize()
+    }
+
+    @ViewBuilder
+    private var noteText: some View {
+        if let note { Text(note).font(.label).foregroundStyle(Ink.secondary).fixedSize() }
     }
 }
 
@@ -93,7 +104,7 @@ struct Card<Content: View>: View {
     var body: some View {
         content
             .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(Ink.card, in: .rect(cornerRadius: 22))
             .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(Ink.line, lineWidth: 1))
     }
@@ -117,8 +128,11 @@ enum Width {
     case narrow, medium, wide
 
     init(_ width: CGFloat) {
-        self = width >= 900 ? .wide : width >= 600 ? .medium : .narrow
+        self = width >= 820 ? .wide : width >= 560 ? .medium : .narrow
     }
+
+    /// Figures a little smaller where four share a narrower row.
+    var figure: CGFloat { self == .wide ? 40 : 36 }
 
     var margin: CGFloat { self == .narrow ? 20 : 28 }
 }

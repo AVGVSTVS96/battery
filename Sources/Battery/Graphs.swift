@@ -9,7 +9,7 @@ struct LiveTrace: View {
     var limit: Double?
 
     var body: some View {
-        let top = max((trace.compactMap(\.watts).max() ?? 10) * 1.25, limit ?? 0, 5)
+        let top = max((trace.compactMap(\.watts).max() ?? 10) * 1.25, (limit ?? 0) * 1.15, 5)
         Chart {
             ForEach(trace, id: \.date) { point in
                 AreaMark(x: .value("Time", point.date), yStart: .value("Floor", 0), yEnd: .value("Watts", point.watts ?? 0),
@@ -26,7 +26,7 @@ struct LiveTrace: View {
                 RuleMark(y: .value("Charger", limit))
                     .foregroundStyle(Ink.faint)
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                    .annotation(position: .top, alignment: .leading, spacing: 3) {
+                    .annotation(position: .bottom, alignment: .trailing, spacing: 3) {
                         Text("\(Int(limit)) W charger").font(.small).foregroundStyle(Ink.faint)
                     }
             }
@@ -35,11 +35,9 @@ struct LiveTrace: View {
         .chartYScale(domain: 0...top)
         .chartXAxis {
             AxisMarks(values: [now.addingTimeInterval(-120), now.addingTimeInterval(-60), now]) { value in
-                AxisValueLabel {
-                    if let date = value.as(Date.self) {
-                        let ago = Int(now.timeIntervalSince(date).rounded())
-                        Text(ago == 0 ? "now" : "\(ago / 60) min").font(.small).foregroundStyle(Ink.faint)
-                    }
+                let ago = value.as(Date.self).map { Int(now.timeIntervalSince($0).rounded()) } ?? 0
+                AxisValueLabel(anchor: ago == 0 ? .topTrailing : ago >= 120 ? .topLeading : .top) {
+                    Text(ago == 0 ? "now" : "\(ago / 60) min ago").font(.small).foregroundStyle(Ink.faint)
                 }
             }
         }
@@ -86,14 +84,14 @@ struct ChargeRow: View {
             HStack(spacing: 8) {
                 if session.ongoing { Circle().fill(Ink.charge).frame(width: 7, height: 7) }
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.system(size: 16)).foregroundStyle(session.ongoing ? Ink.charge : Ink.primary)
+                    Text(title).font(.system(size: 16)).foregroundStyle(session.ongoing ? Ink.charge : Ink.primary).lineLimit(1)
                     Text(Format.charger(session.adapterName, watts: session.adapterWatts, wireless: session.wireless))
                         .font(.label).foregroundStyle(Ink.secondary)
                 }
                 Spacer(minLength: 0)
                 if width == .narrow { chevron }
             }
-            .frame(width: width == .narrow ? nil : 170, alignment: .leading)
+            .frame(width: width == .narrow ? nil : 200, alignment: .leading)
 
             HStack(spacing: 20) {
                 column("Level", value: "\(Int(session.from))→\(Int(session.to))%") {
@@ -186,13 +184,12 @@ struct SessionCurve: View {
         let top = max(session.curve.compactMap(\.watts).max() ?? 10, 5) * 1.15
         Chart {
             ForEach(session.curve, id: \.date) { point in
-                if let watts = point.watts {
-                    BarMark(x: .value("Time", point.date), y: .value("Watts", watts / top * 100), width: .ratio(0.9))
-                        .foregroundStyle(Ink.charge.opacity(0.35))
-                }
+                AreaMark(x: .value("Time", point.date), yStart: .value("Floor", 0),
+                         yEnd: .value("Watts", (point.watts ?? 0) / top * 100), series: .value("Series", "watts"))
+                    .foregroundStyle(Ink.charge.opacity(0.22))
             }
             ForEach(session.curve, id: \.date) { point in
-                LineMark(x: .value("Time", point.date), y: .value("Level", point.percent))
+                LineMark(x: .value("Time", point.date), y: .value("Level", point.percent), series: .value("Series", "level"))
                     .foregroundStyle(Ink.primary)
                     .lineStyle(StrokeStyle(lineWidth: 1.5))
             }
@@ -220,13 +217,14 @@ struct DayBars: View {
     var now: Date
 
     var body: some View {
+        let top = max(days.map { max($0.used, $0.charged) }.max() ?? 50, 50) * 1.1
         Chart {
             ForEach(days) { day in
-                BarMark(x: .value("Day", day.date, unit: .day), y: .value("Used", day.used), width: .ratio(0.42))
+                BarMark(x: .value("Day", day.date, unit: .day), y: .value("Used", day.used), width: .ratio(0.8))
                     .foregroundStyle(Ink.brand)
                     .position(by: .value("Kind", "Used"))
                     .clipShape(.rect(cornerRadius: 3))
-                BarMark(x: .value("Day", day.date, unit: .day), y: .value("Charged", day.charged), width: .ratio(0.42))
+                BarMark(x: .value("Day", day.date, unit: .day), y: .value("Charged", day.charged), width: .ratio(0.8))
                     .foregroundStyle(Ink.charge.opacity(0.85))
                     .position(by: .value("Kind", "Charged"))
                     .clipShape(.rect(cornerRadius: 3))
@@ -236,11 +234,9 @@ struct DayBars: View {
                 RuleMark(y: .value("Average", average.reduce(0, +) / Double(average.count)))
                     .foregroundStyle(Ink.faint)
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                    .annotation(position: .top, alignment: .leading, spacing: 3) {
-                        Text("\(Int(average.reduce(0, +) / Double(average.count)))% a day").font(.small).foregroundStyle(Ink.secondary)
-                    }
             }
         }
+        .chartYScale(domain: 0...top)
         .chartYAxis {
             AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [3, 3])).foregroundStyle(Ink.line)
@@ -249,7 +245,7 @@ struct DayBars: View {
         }
         .chartXAxis {
             AxisMarks(values: .stride(by: .day)) { value in
-                AxisValueLabel {
+                AxisValueLabel(centered: true) {
                     if let date = value.as(Date.self) {
                         Text(date.formatted(.dateTime.weekday(.narrow))).font(.small)
                             .foregroundStyle(Calendar.current.isDate(date, inSameDayAs: now) ? Ink.primary : Ink.faint)
@@ -269,6 +265,19 @@ struct HabitGrid: View {
         let weeks = 4.0
         let symbols = Calendar.current.veryShortWeekdaySymbols
         let today = Calendar.current.component(.weekday, from: now) - 1
+        VStack(alignment: .leading, spacing: 5) {
+            grid(symbols: symbols, today: today, weeks: weeks)
+            HStack(spacing: 0) {
+                ForEach([0, 6, 12, 18], id: \.self) { hour in
+                    Text(hourLabel(hour)).font(.system(size: 10)).foregroundStyle(Ink.faint)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(.leading, 17)
+        }
+    }
+
+    private func grid(symbols: [String], today: Int, weeks: Double) -> some View {
         Grid(horizontalSpacing: 3, verticalSpacing: 3) {
             ForEach(0..<7, id: \.self) { day in
                 GridRow {
@@ -279,14 +288,6 @@ struct HabitGrid: View {
                             .fill(share < 0.04 ? Ink.track : Ink.charge.opacity(0.18 + share * 0.82))
                             .aspectRatio(1, contentMode: .fit)
                     }
-                }
-            }
-            GridRow {
-                Color.clear.frame(width: 14, height: 1)
-                ForEach(0..<24, id: \.self) { hour in
-                    Text(hour % 6 == 0 ? hourLabel(hour) : "")
-                        .font(.system(size: 10)).foregroundStyle(Ink.faint).fixedSize()
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
@@ -306,7 +307,7 @@ struct HourProfile: View {
         let hour = Calendar.current.component(.hour, from: now)
         Chart {
             ForEach(0..<24, id: \.self) { h in
-                BarMark(x: .value("Hour", h), y: .value("Rate", rates[h]), width: .ratio(0.7))
+                BarMark(xStart: .value("From", Double(h) - 0.35), xEnd: .value("To", Double(h) + 0.35), y: .value("Rate", rates[h]))
                     .foregroundStyle(h == hour ? Ink.brand : Ink.primary.opacity(0.22))
                     .clipShape(.rect(cornerRadius: 2))
             }
@@ -349,6 +350,7 @@ struct HealthTrend: View {
             }
         }
         .chartYScale(domain: low...high)
+        .chartXScale(range: .plotDimension(startPadding: 14, endPadding: 14))
         .chartYAxis {
             AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [3, 3])).foregroundStyle(Ink.line)

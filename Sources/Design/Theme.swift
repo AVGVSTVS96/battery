@@ -44,8 +44,8 @@ nonisolated private extension UIColor {
 }
 
 nonisolated extension Font {
-    /// The big light numbers BROADCOM leads with.
-    public static func figure(_ size: CGFloat) -> Font { .system(size: size, weight: .light).monospacedDigit() }
+    /// The big numbers BROADCOM leads with.
+    public static func figure(_ size: CGFloat) -> Font { .system(size: size).monospacedDigit() }
     public static let label = Font.system(size: 13)
     public static let small = Font.system(size: 12)
 }

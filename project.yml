@@ -1,0 +1,27 @@
+name: Battery
+options:
+  deploymentTarget:
+    iOS: "26.0"
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+    SWIFT_APPROACHABLE_CONCURRENCY: YES
+    CODE_SIGN_IDENTITY: "-"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "0.1.0"
+targets:
+  Battery:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources/Battery
+        excludes: [Metadata.appintents]
+      - path: App/Assets.xcassets
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.shahidy.battery
+        PRODUCT_NAME: Battery
+        INFOPLIST_FILE: App/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

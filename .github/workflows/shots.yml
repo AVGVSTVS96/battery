@@ -1,0 +1,30 @@
+# Screenshots of every page on the iPhone Duo's four poses, light and dark, with made-up readings (scripts/shots), and
+# the App Intents metadata the phone build needs: the run's shots artifact.
+name: shots
+on:
+  workflow_dispatch:
+    inputs:
+      scenes:
+        description: scenes, as scripts/shots takes them (empty for all)
+        required: false
+  push:
+    branches: [main]
+    paths: [Sources/**, App/**, project.yml, scripts/shots, .github/workflows/shots.yml]
+concurrency:
+  group: shots-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  shots:
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - run: sudo xcode-select -s /Applications/Xcode_27.1.app
+      - run: brew install --quiet xcodegen
+      - run: scripts/shots ${{ inputs.scenes }}
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shots
+          path: shots/
+          if-no-files-found: ignore

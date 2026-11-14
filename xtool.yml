@@ -1,0 +1,7 @@
+version: 1
+bundleID: com.shahidy.battery
+product: Battery
+infoPath: App/Info.plist
+entitlementsPath: App/Battery.entitlements
+iconPath: App/Icon.png
+skipLSP: true

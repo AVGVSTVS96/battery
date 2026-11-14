@@ -1,0 +1,52 @@
+#!/bin/bash
+# On a Mac with Xcode (GitHub's, through .github/workflows/shots.yml): builds battery for the simulator and screenshots
+# it on the iPhone Duo with Demo.swift's made-up readings, in every pose (folded and open, portrait and landscape), light
+# and dark, into shots/. The open screen comes from unfolding the simulator with scripts/devicehub.c; its own upright
+# is landscape, so Device Hub's portrait shows it in landscape. Also copies the App Intents metadata Xcode made into
+# shots/Metadata.appintents, which the xtool build can't make (Sources/Battery/Metadata.appintents).
+# Usage: scripts/shots [scene…], each scene `<demo>:<page>[@<scroll offset>]`
+set -euo pipefail
+cd "$(dirname "$0")/.."
+[ $# -gt 0 ] || set -- charging:now battery:now charging:now@760 charging:history charging:history@820 charging:history@1500 charging:health
+scenes=("$@")
+xcodegen -q
+xcodebuild -project Battery.xcodeproj -scheme Battery -destination 'generic/platform=iOS Simulator' -derivedDataPath build build -quiet
+app=build/Build/Products/Debug-iphonesimulator/Battery.app
+xcrun -sdk iphonesimulator clang -arch arm64 -mios-simulator-version-min=27.0 -O2 -o build/devicehub scripts/devicehub.c \
+  -framework IOKit -framework CoreFoundation
+codesign -f -s - build/devicehub 2>/dev/null
+rm -rf shots && mkdir -p shots
+cp -R "$app/Metadata.appintents" shots/ 2>/dev/null || true
+id=$(xcrun simctl create "battery Duo" com.apple.CoreSimulator.SimDeviceType.iPhone-Duo)
+xcrun simctl boot "$id"
+xcrun simctl bootstatus "$id" -b >/dev/null
+xcrun simctl install "$id" "$app"
+xcrun simctl status_bar "$id" override --time 9:41 --batteryState charging --batteryLevel 58 --cellularBars 4 --wifiBars 3
+shoot() { # pose display scene appearance
+  local demo=${3%%:*} rest=${3#*:} page offset=0
+  page=${rest%%@*}
+  [[ $rest == *@* ]] && offset=${rest#*@}
+  xcrun simctl ui "$id" appearance "$4"
+  xcrun simctl terminate "$id" com.shahidy.battery 2>/dev/null || true
+  xcrun simctl launch "$id" com.shahidy.battery -demo "$demo" -page "$page" -offset "$offset" >/dev/null
+  sleep 3
+  local name="$1-$demo-$page"
+  [ "$offset" = 0 ] || name+="-$offset"
+  xcrun simctl io "$id" screenshot --display="$2" "shots/$name-$4.png" >/dev/null 2>&1
+}
+while read -r pose hinge orientation display; do
+  xcrun simctl spawn "$id" "$PWD/build/devicehub" hinge "$hinge"
+  sleep 3
+  xcrun simctl spawn "$id" "$PWD/build/devicehub" orientation "$orientation"
+  sleep 2
+  for scene in "${scenes[@]}"; do
+    for appearance in light dark; do shoot "$pose" "$display" "$scene" "$appearance"; done
+  done
+done <<POSES
+folded-portrait 0 portrait 1
+folded-landscape 0 landscape-right 1
+open-landscape 180 portrait 3
+open-portrait 180 landscape-right 3
+POSES
+xcrun simctl shutdown "$id"
+ls shots

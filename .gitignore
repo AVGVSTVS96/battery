@@ -1,0 +1,6 @@
+.build/
+xtool/
+build/
+*.xcodeproj/
+shots/
+.DS_Store

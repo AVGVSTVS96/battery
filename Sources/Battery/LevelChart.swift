@@ -108,7 +108,7 @@ struct LevelChart: View {
             }
         }
         .chartXAxis {
-            AxisMarks(values: .stride(by: past > 3 * 86400 ? .day : .hour, count: past > 3 * 86400 ? 1 : past > 12 * 3600 ? 6 : 3)) { value in
+            AxisMarks(values: ticks(from: start, to: max(now, ahead))) { value in
                 AxisValueLabel {
                     if let date = value.as(Date.self) {
                         Text(past > 3 * 86400 ? date.formatted(.dateTime.weekday(.narrow)) : date.formatted(.dateTime.hour()))
@@ -133,6 +133,16 @@ struct LevelChart: View {
             }
         }
         .frame(height: height)
+    }
+
+    /// Midnights across more than three days, every three or six hours across less, none past the last drawn moment.
+    private func ticks(from start: Date, to end: Date) -> [Date] {
+        let calendar = Calendar.current
+        let days = past > 3 * 86400, every = past > 12 * 3600 ? 6 : 3
+        let first = calendar.dateInterval(of: days ? .day : .hour, for: start)?.end ?? start
+        return sequence(first: first) { calendar.date(byAdding: days ? .day : .hour, value: 1, to: $0) }
+            .prefix { $0 <= end }
+            .filter { days || calendar.component(.hour, from: $0) % every == 0 }
     }
 
     private func points(since start: Date) -> [Point] {

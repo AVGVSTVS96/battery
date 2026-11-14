@@ -71,6 +71,8 @@ nonisolated struct Analysis: Sendable {
     var habits: [[Double]] = Array(repeating: Array(repeating: 0, count: 24), count: 7)
     /// Percent an hour drained at each hour of the day.
     var drainByHour: [Double] = Array(repeating: 0, count: 24)
+    /// Hours on battery each hour of the day has seen, weighted to the last ten days or so.
+    var drainHoursSeen: [Double] = Array(repeating: 0, count: 24)
     var averageDrain = 5.0
     /// How much faster or slower than usual drains run: the 20th and 80th percentiles.
     var drainSpread = (low: 0.75, high: 1.3)
@@ -210,6 +212,7 @@ nonisolated struct Analysis: Sendable {
         if totalHours > 2 { averageDrain = max(totalDrop / totalHours, 0.3) }
         // Each hour leans on the overall rate until it has a couple of hours of its own.
         drainByHour = (0..<24).map { (drop[$0] + 1.5 * averageDrain) / (hours[$0] + 1.5) }
+        drainHoursSeen = hours
 
         let ratios = drains.filter { $0.hours > 0.75 && $0.from - $0.to >= 3 }.suffix(30).map { drain in
             drain.rate / max(expectedRate(from: drain.start, to: drain.end, calendar: calendar), 0.1)

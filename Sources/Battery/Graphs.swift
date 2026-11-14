@@ -304,9 +304,11 @@ struct HabitGrid: View {
     }
 }
 
-/// How fast the battery usually drains at each hour of the day: the model behind time left.
+/// How fast the battery usually drains at each hour of the day: the model behind time left. Hours it has barely seen
+/// off the charger show faint, since their rate is mostly the overall average.
 struct HourProfile: View {
     var rates: [Double]
+    var seen: [Double]
     var now: Date
 
     var body: some View {
@@ -316,7 +318,7 @@ struct HourProfile: View {
                 if rates[h] > 0 {
                     RectangleMark(xStart: .value("From", Double(h) - 0.35), xEnd: .value("To", Double(h) + 0.35),
                                   yStart: .value("Floor", 0), yEnd: .value("Rate", rates[h]))
-                        .foregroundStyle(h == hour ? Ink.brand : Ink.primary.opacity(0.22))
+                        .foregroundStyle(h == hour ? Ink.brand : Ink.primary.opacity(seen[h] < 0.5 ? 0.08 : 0.22))
                         .clipShape(.rect(cornerRadius: 2))
                 }
             }

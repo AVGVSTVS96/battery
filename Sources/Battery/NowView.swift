@@ -52,7 +52,7 @@ struct NowView: View {
                 }
             } else if width == .wide {
                 Block(title: "Drain by hour", note: "what time left is worked out from") {
-                    HourProfile(rates: monitor.analysis.drainByHour, now: monitor.now).frame(height: 150)
+                    HourProfile(rates: monitor.analysis.drainByHour, seen: monitor.analysis.drainHoursSeen, now: monitor.now).frame(height: 150)
                 }
             }
             if let reading {
@@ -65,7 +65,7 @@ struct NowView: View {
     private var charges: some View {
         let recent = monitor.analysis.sessions.suffix(4).reversed()
         if !recent.isEmpty {
-            Block(title: "Recent charges", note: "tap one for its curve") {
+            Block(title: "Recent charges", note: "the last four") {
                 VStack(spacing: 0) {
                     Divided()
                     ForEach(Array(recent)) { ChargeRow(session: $0, now: monitor.now, width: width) }

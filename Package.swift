@@ -8,6 +8,7 @@ let package = Package(
     targets: [
         .target(
             name: "Battery",
+            exclude: ["Metadata.appintents"],
             swiftSettings: [
                 .defaultIsolation(MainActor.self),
                 .enableUpcomingFeature("NonisolatedNonsendingByDefault"),

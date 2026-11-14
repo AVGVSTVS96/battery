@@ -5,3 +5,5 @@ infoPath: App/Info.plist
 entitlementsPath: App/Battery.entitlements
 iconPath: App/Icon.png
 skipLSP: true
+resources:
+  - Sources/Battery/Metadata.appintents

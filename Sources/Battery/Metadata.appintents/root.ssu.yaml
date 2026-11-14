@@ -1,0 +1,39 @@
+apiVersion: ssu/v1
+nlu:
+  shortcuts:
+    bundleIdentifier: com.shahidy.battery
+    intents:
+    - metadata:
+        name: RecordBattery_0
+        title: Record Battery
+      corpuses:
+        training:
+        - locale: en
+          utterances:
+          - '{${+prefix} }Record ${+applicationName}'
+    - metadata:
+        name: +negative
+      corpuses:
+        training:
+        - locale: en
+          utterances:
+          - '{${+prefix} }${+standardAppShortcutNegatives}'
+variables:
+- name: +applicationName
+  type: ssu/expansion
+  definitions:
+  - locale: en
+    synomyms:
+    - battery
+- name: +prefix
+  type: ssu/expansion
+  definitions:
+  - locale: en
+    synomyms:
+      $ref: ssu://Resources/prefix/en.yaml
+- name: +standardAppShortcutNegatives
+  type: ssu/expansion
+  definitions:
+  - locale: en
+    synomyms:
+      $ref: ssu://Resources/standardAppShortcutNegatives/en.yaml

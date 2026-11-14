@@ -106,17 +106,15 @@ enum Demo {
                 let nightPlug = calendar.date(bySettingHour: 23, minute: Int(random() * 50), second: 0, of: day)!
                 // In the charging story last night's charge was missed, so the morning starts low.
                 let skipNight = Demo.charging && calendar.isDate(t, inSameDayAs: today.addingTimeInterval(-3600))
-                let evening = false
                 let middayTopUp = random() < 0.35 && hour == 13 && !isToday && !skipNight
                 let morningCharge = isToday && Demo.charging && t >= today.addingTimeInterval(9 * 3600)
 
                 if morningCharge || middayTopUp || (t >= nightPlug && !skipNight && p < 70) {
-                    let magsafe = middayTopUp && !evening && random() < 0.6
+                    let magsafe = middayTopUp && random() < 0.6
                     let limit = morningCharge ? 30.0 : magsafe ? 15 : 20
                     let name = magsafe ? "magsafe chg" : "pd charger"
                     let night = !morningCharge && !middayTopUp
                     let unplugAt = morningCharge ? end
-                        : evening ? t.addingTimeInterval(30 * 60)
                         : middayTopUp ? t.addingTimeInterval(Double(25 + Int(random() * 25)) * 60)
                         : calendar.date(bySettingHour: 7, minute: 5 + Int(random() * 40), second: 0, of: day.addingTimeInterval(86400 + 3600))!
                     let finishBy = unplugAt.addingTimeInterval(-50 * 60)

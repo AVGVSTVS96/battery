@@ -24,4 +24,5 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.shahidy.battery
         PRODUCT_NAME: Battery
         INFOPLIST_FILE: App/Info.plist
+        GENERATE_INFOPLIST_FILE: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

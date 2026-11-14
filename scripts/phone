@@ -1,15 +1,20 @@
 #!/bin/bash
 # Builds battery as committed here with xtool on this server, signs it on the Mac with the team's development
 # certificate (xtool only makes the profile and signs ad hoc; scripts/resign signs where the key is), and puts it on
-# hangar, where a tap installs it on the phone. Waits for the Mac when it doesn't answer. Never let xtool revoke a
-# certificate to make its own: that breaks everything the Mac signs (stdin is closed, so it can't ask). The build
-# number is the commit count; hangar's address comes from ~/Developer/hangar/config (HANGAR_URL).
+# hangar, where a tap installs it on the phone. Waits for the Mac first when it doesn't answer, so a waiting run builds
+# what's newest once it can sign. Never let xtool revoke a certificate to make its own: that breaks everything the Mac
+# signs (stdin is closed, so it can't ask). The build number is the commit count; hangar's address comes from
+# ~/Developer/hangar/config (HANGAR_URL).
 # Usage: scripts/phone
 set -euo pipefail
 cd "$(dirname "$0")/.."
 repo=$PWD
 hangar=$HOME/Developer/hangar
 . "$hangar/config"
+until ssh -o ConnectTimeout=20 -o BatchMode=yes mac true </dev/null 2>/dev/null; do
+  echo "waiting for the Mac to answer: every build is signed there" >&2
+  sleep 60
+done
 build=$HOME/.cache/battery/build
 number=$(git rev-list --count HEAD)
 rm -rf "$build" && mkdir -p "$build"
@@ -33,10 +38,6 @@ import glob, os, plistlib, subprocess
 path = max(glob.glob(os.path.expanduser('~/.config/xtool/data/??????????')), key=os.path.getmtime)
 der = plistlib.load(open(path, 'rb'))['certificate']
 print(subprocess.run(['openssl', 'x509', '-inform', 'DER', '-noout', '-serial'], input=der, capture_output=True).stdout.decode().split('=')[1].strip())")
-until ssh -o ConnectTimeout=20 -o BatchMode=yes mac true </dev/null 2>/dev/null; do
-  echo "waiting for the Mac to answer: every build is signed there" >&2
-  sleep 60
-done
 ssh mac 'rm -rf Developer/battery-phone && mkdir -p Developer/battery-phone'
 rsync -a xtool/Battery.app mac:Developer/battery-phone/
 ssh mac sh -s "$serial" Developer/battery-phone/Battery.app < "$hangar/scripts/resign"

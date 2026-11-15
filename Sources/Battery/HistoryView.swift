@@ -50,7 +50,7 @@ struct HistoryView: View {
                 }
             }
             pair {
-                Block(title: "Drain by hour", note: "% an hour, faint ones guessed") {
+                Block(title: "Drain by hour", note: "faint ones guessed") {
                     HourProfile(rates: analysis.drainByHour, seen: analysis.drainHoursSeen, now: monitor.now).frame(height: 150)
                 }
             } second: {

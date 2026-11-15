@@ -51,7 +51,7 @@ struct NowView: View {
                         .frame(height: width == .narrow ? 130 : 150)
                 }
             } else if width == .wide {
-                Block(title: "Drain by hour", note: "% an hour, faint ones guessed") {
+                Block(title: "Drain by hour", note: "faint ones guessed") {
                     HourProfile(rates: monitor.analysis.drainByHour, seen: monitor.analysis.drainHoursSeen, now: monitor.now).frame(height: 150)
                 }
             }
@@ -180,7 +180,7 @@ struct Figures: View {
             let hour = Calendar.current.component(.hour, from: reading.date)
             let usual = analysis.drainByHour[hour]
             let current = analysis.drains.last.flatMap { $0.hours > 0.5 ? $0.rate : nil } ?? usual
-            Stat(label: "Drain", value: String(format: "%.1f", current), unit: "% an hour", color: Ink.brand,
+            Stat(label: "Drain", value: String(format: "%.1f", current), unit: "%/h", color: Ink.brand,
                  caption: "Usually \(String(format: "%.1f", usual))% at this hour") {
                 SegmentBar(value: current / 16, projected: usual / 16, segments: 4, color: Ink.brand)
             }

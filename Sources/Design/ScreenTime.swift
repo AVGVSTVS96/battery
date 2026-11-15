@@ -215,16 +215,7 @@ nonisolated public struct ScreenTimeView: View {
         }
         .chartXScale(domain: -0.5...23.5)
         .chartYScale(domain: 0...min(max((screenTime.hours.max() ?? 0) / 60 * 1.15, 10), 60))
-        .chartXAxis {
-            AxisMarks(values: [0, 6, 12, 18]) { value in
-                AxisValueLabel(anchor: .top) {
-                    if let h = value.as(Int.self),
-                       let date = Calendar.current.date(bySettingHour: h, minute: 0, second: 0, of: screenTime.now) {
-                        Text(date.formatted(.dateTime.hour())).font(.small).foregroundStyle(Ink.faint)
-                    }
-                }
-            }
-        }
+        .hourAxis(screenTime.now)
         .chartYAxis {
             AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [3, 3])).foregroundStyle(Ink.line)

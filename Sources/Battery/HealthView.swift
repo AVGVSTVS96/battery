@@ -16,7 +16,7 @@ struct HealthView: View {
             headline(latest)
             figures(latest)
             if monitor.health.count > 1 {
-                Block(title: "Maximum capacity", note: "from each Analytics file you shared") {
+                Block(title: "Maximum capacity", note: "from your Analytics files") {
                     HealthTrend(records: monitor.health).frame(height: 170)
                 }
             }
@@ -41,7 +41,7 @@ struct HealthView: View {
         VStack(alignment: .leading, spacing: 8) {
             Group {
                 if let latest, let capacity = latest.maximumCapacity {
-                    Text("Battery health \(Text("\(Int(capacity))%").foregroundStyle(capacity < 80 ? Ink.bad : Ink.charge))\u{00A0}\(Text(Format.glue(change(to: capacity))).foregroundStyle(Ink.secondary))")
+                    Text("Battery health \(Text("\(Int(capacity))%").foregroundStyle(capacity < 80 ? Ink.bad : Ink.charge))\u{00A0}\(Text(change(to: capacity)).foregroundStyle(Ink.secondary))")
                 } else {
                     Text("Battery health\u{00A0}\(Text(Format.glue("· share an Analytics file")).foregroundStyle(Ink.secondary))")
                 }
@@ -59,11 +59,11 @@ struct HealthView: View {
     /// "· down 2 points since Sep 12", or "· as new" with nothing to compare.
     private func change(to capacity: Double) -> String {
         guard let first = monitor.health.first, let start = first.maximumCapacity, monitor.health.count > 1 else {
-            return capacity >= 100 ? "· as new" : ""
+            return capacity >= 100 ? "·\u{00A0}as new" : ""
         }
         let points = Int((start - capacity).rounded())
         let since = first.date.formatted(.dateTime.month(.abbreviated).day())
-        return points > 0 ? "· down \(points) \(points == 1 ? "point" : "points") since \(since)" : "· steady since \(since)"
+        return points > 0 ? "·\u{00A0}down \(points) \(points == 1 ? "point" : "points") since \(since)" : "·\u{00A0}steady since \(since)"
     }
 
     private func figures(_ latest: HealthRecord?) -> some View {

@@ -318,7 +318,7 @@ struct HourProfile: View {
                 if rates[h] > 0 {
                     RectangleMark(xStart: .value("From", Double(h) - 0.35), xEnd: .value("To", Double(h) + 0.35),
                                   yStart: .value("Floor", 0), yEnd: .value("Rate", rates[h]))
-                        .foregroundStyle(h == hour ? Ink.brand : Ink.primary.opacity(seen[h] < 0.5 ? 0.08 : 0.22))
+                        .foregroundStyle(h == hour ? Ink.brand : seen[h] < 0.5 ? Ink.track : Ink.primary.opacity(0.22))
                         .clipShape(.rect(cornerRadius: 2))
                 }
             }
@@ -326,7 +326,7 @@ struct HourProfile: View {
         .chartXScale(domain: -0.5...23.5)
         .chartXAxis {
             AxisMarks(values: [0, 6, 12, 18]) { value in
-                AxisValueLabel {
+                AxisValueLabel(anchor: .top) {
                     if let h = value.as(Int.self),
                        let date = Calendar.current.date(bySettingHour: h, minute: 0, second: 0, of: now) {
                         Text(date.formatted(.dateTime.hour())).font(.small).foregroundStyle(Ink.faint)

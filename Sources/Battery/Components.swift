@@ -62,9 +62,14 @@ struct Stat<Bar: View>: View {
             }
             .lineLimit(1)
             bar
-            // Wraps to the cell's width, so it never decides how wide the cell has to be.
-            Text(caption).font(.label).foregroundStyle(Ink.secondary).lineLimit(2).fixedSize(horizontal: false, vertical: true)
-                .frame(minWidth: 0, idealWidth: 0, maxWidth: .infinity, alignment: .leading)
+            // One line where it fits, else a line per part; never as wide as the cell has to be.
+            ViewThatFits(in: .horizontal) {
+                Text(caption).lineLimit(1)
+                Text(caption.components(separatedBy: "\u{00A0}· ").joined(separator: "\n")).lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .font(.label).foregroundStyle(Ink.secondary)
+            .frame(minWidth: 0, idealWidth: 0, maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -98,7 +103,7 @@ struct FigureRow<Content: View>: View {
     }
 
     private func row(_ cells: SubviewsCollection) -> some View {
-        HStack(spacing: 0) {
+        EqualRow {
             ForEach(cells.indices, id: \.self) { i in cell(cells[i], trailing: i < cells.count - 1) }
         }
         .fixedSize(horizontal: false, vertical: true)
@@ -123,6 +128,25 @@ struct FigureRow<Content: View>: View {
             if trailing { Divided(vertical: true) }
         }
         .frame(maxHeight: .infinity, alignment: .top)
+    }
+}
+
+/// Cells in equal shares of the width. Its ideal width is the widest cell's times the count, so `ViewThatFits` passes
+/// over it as soon as any one cell would be cut off in its share.
+struct EqualRow: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let count = CGFloat(max(subviews.count, 1))
+        let width = proposal.width ?? (subviews.map { $0.sizeThatFits(.unspecified).width }.max() ?? 0) * count
+        let height = subviews.map { $0.sizeThatFits(.init(width: width / count, height: nil)).height }.max() ?? 0
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let share = bounds.width / CGFloat(max(subviews.count, 1))
+        for (i, subview) in subviews.enumerated() {
+            subview.place(at: CGPoint(x: bounds.minX + share * CGFloat(i), y: bounds.minY),
+                          proposal: .init(width: share, height: bounds.height))
+        }
     }
 }
 

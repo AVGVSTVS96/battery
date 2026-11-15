@@ -51,7 +51,7 @@ struct NowView: View {
                         .frame(height: width == .narrow ? 130 : 150)
                 }
             } else if width == .wide {
-                Block(title: "Drain by hour", note: "what time left is worked out from") {
+                Block(title: "Drain by hour", note: "% an hour, faint ones guessed") {
                     HourProfile(rates: monitor.analysis.drainByHour, seen: monitor.analysis.drainHoursSeen, now: monitor.now).frame(height: 150)
                 }
             }
@@ -102,7 +102,7 @@ struct Headline: View {
         let percent = Text("\(Int(reading.percent))%")
         switch reading.state {
         case .charging:
-            let watts = (reading.inputWatts ?? reading.batteryWatts).map { Text("\(Format.watts($0)) W").foregroundStyle(Ink.charge) }
+            let watts = (reading.inputWatts ?? reading.batteryWatts).map { Text(Format.glue("\(Format.watts($0)) W")).foregroundStyle(Ink.charge) }
             let lead = watts.map { Text("Charging at \($0)") } ?? Text("Charging \(percent.foregroundStyle(Ink.charge))")
             guard let forecast else { return lead }
             let target = forecast.target < 100 ? "\(Int(forecast.target))% by" : "full by"

@@ -24,7 +24,7 @@ struct LevelChart: View {
         let history = Analysis.thin(points(since: start), to: 360)
         let ahead = forecast.map { min($0.date, now.addingTimeInterval(2 * 86400)) } ?? now
         let path = (forecast?.path ?? []).filter { $0.date <= ahead }
-        let end = max(ahead.addingTimeInterval(ahead.timeIntervalSince(start) * 0.1), now.addingTimeInterval(past * 0.04))
+        let end = max(ahead, now.addingTimeInterval(past * 0.04))
         let charging = forecast.map { $0.target > 0 } ?? false
         let tint = charging ? Ink.charge : Ink.brand
         let spans = spans(since: start)
@@ -93,13 +93,13 @@ struct LevelChart: View {
                 PointMark(x: .value("Done", forecast.date), y: .value("Level", last.percent))
                     .foregroundStyle(tint)
                     .symbolSize(36)
-                    .annotation(position: forecast.target > 0 ? .bottomTrailing : .topTrailing, spacing: 4,
-                                overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
+                    .annotation(position: forecast.target > 0 ? .bottomTrailing : .topTrailing, spacing: 4) {
                         Text(Format.time(forecast.date)).font(.small.weight(.medium)).foregroundStyle(tint)
                     }
             }
         }
-        .chartXScale(domain: start...end)
+        // Room past the forecast's end for its time, in points, so the label never lands on the line.
+        .chartXScale(domain: start...end, range: .plotDimension(endPadding: path.isEmpty ? 0 : 64))
         .chartYScale(domain: 0...100)
         .chartYAxis {
             AxisMarks(position: .leading, values: [0, 50, 100]) { value in
@@ -111,7 +111,8 @@ struct LevelChart: View {
             AxisMarks(values: ticks(from: start, to: max(now, ahead))) { value in
                 AxisValueLabel {
                     if let date = value.as(Date.self) {
-                        Text(past > 3 * 86400 ? date.formatted(.dateTime.weekday(.narrow)) : date.formatted(.dateTime.hour()))
+                        Text(past > 8 * 86400 ? date.formatted(.dateTime.month(.abbreviated).day())
+                             : past > 3 * 86400 ? date.formatted(.dateTime.weekday(.narrow)) : date.formatted(.dateTime.hour()))
                             .font(.small).foregroundStyle(Ink.faint)
                     }
                 }
@@ -135,14 +136,14 @@ struct LevelChart: View {
         .frame(height: height)
     }
 
-    /// Midnights across more than three days, every three or six hours across less, none past the last drawn moment.
+    /// Mondays across four weeks, midnights across a week, every three or six hours across a day; none past the end.
     private func ticks(from start: Date, to end: Date) -> [Date] {
         let calendar = Calendar.current
-        let days = past > 3 * 86400, every = past > 12 * 3600 ? 6 : 3
+        let days = past > 3 * 86400, weeks = past > 8 * 86400, every = past > 12 * 3600 ? 6 : 3
         let first = calendar.dateInterval(of: days ? .day : .hour, for: start)?.end ?? start
         return sequence(first: first) { calendar.date(byAdding: days ? .day : .hour, value: 1, to: $0) }
             .prefix { $0 <= end }
-            .filter { days || calendar.component(.hour, from: $0) % every == 0 }
+            .filter { weeks ? calendar.component(.weekday, from: $0) == 2 : days || calendar.component(.hour, from: $0) % every == 0 }
     }
 
     private func points(since start: Date) -> [Point] {

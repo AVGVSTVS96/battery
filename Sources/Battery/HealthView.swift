@@ -63,7 +63,7 @@ struct HealthView: View {
         }
         let points = Int((start - capacity).rounded())
         let since = first.date.formatted(.dateTime.month(.abbreviated).day())
-        return points > 0 ? "· down \(points) since \(since)" : "· steady since \(since)"
+        return points > 0 ? "· down \(points) \(points == 1 ? "point" : "points") since \(since)" : "· steady since \(since)"
     }
 
     private func figures(_ latest: HealthRecord?) -> some View {

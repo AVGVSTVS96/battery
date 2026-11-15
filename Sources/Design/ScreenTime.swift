@@ -66,9 +66,9 @@ nonisolated public struct ScreenTimeView: View {
     /// The height the view needs at a width, which the app sets, since a report can't size itself to its content.
     public static func height(for width: CGFloat) -> CGFloat {
         switch Tier(width) {
-        case .wide: 440
-        case .medium: 550
-        case .narrow: 900
+        case .wide: 400
+        case .medium: 528
+        case .narrow: 910
         }
     }
 
@@ -214,10 +214,10 @@ nonisolated public struct ScreenTimeView: View {
             }
         }
         .chartXScale(domain: -0.5...23.5)
-        .chartYScale(domain: 0...60)
+        .chartYScale(domain: 0...min(max((screenTime.hours.max() ?? 0) / 60 * 1.15, 10), 60))
         .chartXAxis {
             AxisMarks(values: [0, 6, 12, 18]) { value in
-                AxisValueLabel {
+                AxisValueLabel(anchor: .top) {
                     if let h = value.as(Int.self),
                        let date = Calendar.current.date(bySettingHour: h, minute: 0, second: 0, of: screenTime.now) {
                         Text(date.formatted(.dateTime.hour())).font(.small).foregroundStyle(Ink.faint)
@@ -226,7 +226,7 @@ nonisolated public struct ScreenTimeView: View {
             }
         }
         .chartYAxis {
-            AxisMarks(position: .leading, values: [0, 30, 60]) { value in
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [3, 3])).foregroundStyle(Ink.line)
                 AxisValueLabel { Text("\(value.as(Int.self) ?? 0) m").font(.small).foregroundStyle(Ink.faint) }
             }

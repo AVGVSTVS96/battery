@@ -50,11 +50,11 @@ struct HistoryView: View {
                 }
             }
             pair {
-                Block(title: "Drain by hour", note: "what time left is worked out from") {
+                Block(title: "Drain by hour", note: "% an hour, faint ones guessed") {
                     HourProfile(rates: analysis.drainByHour, seen: analysis.drainHoursSeen, now: monitor.now).frame(height: 150)
                 }
             } second: {
-                Block(title: "Charge speed", note: "minutes per percent, by level") {
+                Block(title: "Charge speed", note: "minutes a percent") {
                     ChargeSpeed(minutes: analysis.chargeMinutes).frame(height: 150)
                 }
             }

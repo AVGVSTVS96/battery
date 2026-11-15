@@ -44,4 +44,4 @@ ssh mac sh -s "$serial" Developer/battery-phone/Battery.app < "$hangar/scripts/r
 ssh mac 'cd Developer/battery-phone && mkdir Payload && cp -R Battery.app Payload/ && ditto -c -k --norsrc --noextattr --keepParent Payload battery.ipa'
 scp -q mac:Developer/battery-phone/battery.ipa battery.ipa
 "$hangar/bin/hangar" put battery.ipa --notes "$(git -C "$repo" log -1 --format=%s)"
-echo "battery $number is on $HANGAR_URL/: tap Install in hangar on the phone"
+echo "battery $number is on $HANGAR_URL/"

@@ -8,6 +8,7 @@ struct RecordBattery: AppIntent {
     static let openAppWhenRun = false
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
+        Log.note("Record Battery")
         let reading = await Monitor.shared.tick(force: true)
         let state = switch reading.state {
         case .battery: "on battery"

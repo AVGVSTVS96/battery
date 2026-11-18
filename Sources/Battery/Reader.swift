@@ -47,6 +47,10 @@ nonisolated final class Reader: @unchecked Sendable {
     private var lastTemperatures: (date: Date, battery: Double?, chip: Double?) = (.distantPast, nil, nil)
     private var lastRescan = Date.distantPast
 
+    func allPower() -> [(name: String, usage: Int, value: Double?)] {
+        queue.sync { sensors?.allPower() ?? [] }
+    }
+
     func read(_ fallback: PublicPower, temperatureEvery: TimeInterval = 5) async -> Reading {
         await withCheckedContinuation { continuation in
             queue.async { [self] in continuation.resume(returning: readNow(fallback, temperatureEvery: temperatureEvery)) }

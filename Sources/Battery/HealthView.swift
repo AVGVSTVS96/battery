@@ -128,6 +128,17 @@ struct HealthView: View {
                 }
             }
             .tint(Ink.charge)
+            if monitor.keepsRecording && !monitor.keepalive.startsWhileClosed {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Set Location to Always so a charge that starts while battery is closed is recorded too")
+                        .font(.label).foregroundStyle(Ink.secondary)
+                    Button("Open Settings", systemImage: "location") {
+                        UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!)
+                    }
+                    .buttonStyle(.glass)
+                    .font(.label)
+                }
+            }
             Divided()
             VStack(alignment: .leading, spacing: 4) {
                 Text("Fill the gaps with Shortcuts").font(.system(size: 15, weight: .medium)).foregroundStyle(Ink.primary)

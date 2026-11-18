@@ -7,16 +7,26 @@ struct BatteryApp: App {
     @State private var monitor = Monitor.shared
     @Environment(\.scenePhase) private var phase
 
+    init() {
+        ChargeTask.register()
+        Log.trim()
+        Log.note("launch")
+    }
+
     var body: some Scene {
         WindowGroup {
             Root()
                 .environment(monitor)
                 .onChange(of: phase, initial: true) { _, phase in monitor.setActive(phase == .active) }
-                .onAppear { Hangar.running() }
+                .onAppear { Hangar.running(); Probe.write() }
                 .task { Demo.drawn() }
         }
         .backgroundTask(.appRefresh(BackgroundRefresh.identifier)) {
-            await MainActor.run { BackgroundRefresh.schedule() }
+            await MainActor.run {
+                BackgroundRefresh.schedule()
+                ChargeTask.schedule()
+            }
+            Log.note("refresh")
             _ = await Monitor.shared.tick(force: true)
         }
     }

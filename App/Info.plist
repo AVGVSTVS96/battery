@@ -18,8 +18,8 @@
 		<key>LSItemContentTypes</key><array><string>public.data</string><string>public.text</string><string>public.json</string></array>
 	</dict></array>
 	<key>LSSupportsOpeningDocumentsInPlace</key><false/>
-	<key>UIBackgroundModes</key><array><string>location</string><string>fetch</string></array>
-	<key>BGTaskSchedulerPermittedIdentifiers</key><array><string>com.shahidy.battery.refresh</string></array>
+	<key>UIBackgroundModes</key><array><string>location</string><string>fetch</string><string>processing</string></array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key><array><string>com.shahidy.battery.refresh</string><string>com.shahidy.battery.charge</string></array>
 	<key>NSLocationWhenInUseUsageDescription</key><string>battery keeps running while your phone charges so it can record the whole charge. It never stores where you are.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key><string>battery keeps running while your phone charges so it can record the whole charge, and stops the moment you unplug. It never stores where you are.</string>
 	<key>UILaunchScreen</key><dict/>

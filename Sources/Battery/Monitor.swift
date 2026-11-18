@@ -4,7 +4,8 @@ import UIKit
 
 /// The live reading, the saved history and what's worked out from it. Reads every second on screen; in the
 /// background it runs only while the phone is plugged in, every ten seconds, and stops at the unplug, so the app costs
-/// nothing on battery.
+/// nothing on battery. A plug-in while it's closed reaches it through a Shortcuts automation running Record Battery,
+/// or iOS's next background task that waits for power (`ChargeTask`).
 @Observable
 final class Monitor {
     private(set) var live: Reading?
@@ -22,7 +23,7 @@ final class Monitor {
     let keepalive = Keepalive()
     let isDemo: Bool
 
-    private let reader = Reader()
+    let reader = Reader()
     private let store: Store
     private var loop: Task<Void, Never>?
     private var active = false
@@ -42,6 +43,10 @@ final class Monitor {
         } else {
             health = HealthRecord.load()
             Task { await loadHistory() }
+            NotificationCenter.default.addObserver(forName: UIDevice.batteryStateDidChangeNotification, object: nil,
+                                                   queue: .main) { [weak self] _ in
+                Task { await self?.tick() }
+            }
         }
     }
 
@@ -64,8 +69,35 @@ final class Monitor {
     func setActive(_ active: Bool) {
         guard !isDemo else { return }
         self.active = active
+        Log.note(active ? "on screen" : "off screen")
         restartLoop()
-        if !active { BackgroundRefresh.schedule() }
+        if !active {
+            BackgroundRefresh.schedule()
+            ChargeTask.schedule()
+        }
+    }
+
+    /// Records a charge for as long as iOS lets a background task that waited for power run, or until the keepalive
+    /// takes over or the phone is unplugged.
+    func record(_ task: BGProcessingTask) async {
+        Log.note("charge task")
+        let work = Task {
+            var force = true
+            while !Task.isCancelled {
+                let reading = await tick(force: force)
+                force = false
+                if !reading.state.pluggedIn || keepalive.isRunning { break }
+                try? await Task.sleep(for: .seconds(10))
+            }
+        }
+        task.expirationHandler = {
+            Log.note("charge task expired")
+            work.cancel()
+        }
+        await work.value
+        Log.note("charge task done, \(live?.state.rawValue ?? "?"), keepalive \(keepalive.isRunning)")
+        ChargeTask.schedule()
+        task.setTaskCompleted(success: true)
     }
 
     private func restartLoop() {
@@ -114,10 +146,13 @@ final class Monitor {
         if keepsRecording && plugged {
             if !keepalive.isRunning {
                 keepalive.start()
+                if keepalive.isRunning { Log.note("plugged in, keepalive started") }
                 if !active { restartLoop() }
             }
         } else if keepalive.isRunning {
             keepalive.stop()
+            ChargeTask.schedule()
+            Log.note("unplugged, keepalive stopped")
             if !active { loop?.cancel() }
         }
     }
@@ -147,6 +182,25 @@ final class Monitor {
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         guard let data = try? Data(contentsOf: url) else { return nil }
         return importAnalytics(String(decoding: data, as: UTF8.self))
+    }
+}
+
+/// A background task iOS runs only while the phone is on power, so a charge that starts with the app closed still
+/// gets recorded. iOS picks when, usually soon after the screen goes off on the charger.
+enum ChargeTask {
+    static let identifier = "com.shahidy.battery.charge"
+
+    static func register() {
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: .main) { task in
+            guard let task = task as? BGProcessingTask else { return task.setTaskCompleted(success: false) }
+            MainActor.assumeIsolated { Task { await Monitor.shared.record(task) } }
+        }
+    }
+
+    static func schedule() {
+        let request = BGProcessingTaskRequest(identifier: identifier)
+        request.requiresExternalPower = true
+        try? BGTaskScheduler.shared.submit(request)
     }
 }
 

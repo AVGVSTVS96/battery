@@ -126,6 +126,10 @@ nonisolated final class Sensors: @unchecked Sendable {
         return value.isFinite ? value : nil
     }
 
+    func allPower() -> [(name: String, usage: Int, value: Double?)] {
+        discover(["PrimaryUsagePage": 0xff08], event: 25).map { ($0.name, $0.usage, read($0)) }
+    }
+
     /// Readings of the power sensors by name ("Charger VQ0u" and so on).
     func readPower() -> [String: Double] {
         var values: [String: Double] = [:]

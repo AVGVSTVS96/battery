@@ -47,10 +47,6 @@ nonisolated final class Reader: @unchecked Sendable {
     private var lastTemperatures: (date: Date, battery: Double?, chip: Double?) = (.distantPast, nil, nil)
     private var lastRescan = Date.distantPast
 
-    func allPower() -> [(name: String, usage: Int, value: Double?)] {
-        queue.sync { sensors?.allPower() ?? [] }
-    }
-
     func read(_ fallback: PublicPower, temperatureEvery: TimeInterval = 5) async -> Reading {
         await withCheckedContinuation { continuation in
             queue.async { [self] in continuation.resume(returning: readNow(fallback, temperatureEvery: temperatureEvery)) }
@@ -60,7 +56,7 @@ nonisolated final class Reader: @unchecked Sendable {
     private func readNow(_ fallback: PublicPower, temperatureEvery: TimeInterval) -> Reading {
         let now = Date()
         let battery = powerd?.battery()
-        let percent = (battery?["Current Capacity"] as? NSNumber)?.doubleValue ?? fallback.percent ?? 0
+        let percent = ExactPercent.current() ?? (battery?["Current Capacity"] as? NSNumber)?.doubleValue ?? fallback.percent ?? 0
         let external = (battery?["Power Source State"] as? String).map { $0 == "AC Power" } ?? fallback.pluggedIn
         let charging = (battery?["Is Charging"] as? NSNumber)?.boolValue ?? fallback.charging
         let charged = (battery?["Is Charged"] as? NSNumber)?.boolValue ?? fallback.full

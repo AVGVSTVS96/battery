@@ -10,7 +10,8 @@ Battery stats for your own iPhone, with charging watts, temperatures, history an
 
 | | From |
 | --- | --- |
-| Level, charging, Low Power Mode, heat state | UIKit and powerd |
+| Level to the percent | the level powerd posts to notify clients (its battery description and UIKit round to 5%) |
+| Charging, Low Power Mode, heat state | UIKit and powerd |
 | Charger watts, volts, amps, watts into the battery | IOHIDEventSystemClient power sensors (private) |
 | Battery and chip temperature | IOHIDEventSystemClient temperature sensors (private) |
 | Charger kind and wattage | `IOPSCopyExternalPowerAdapterDetails` (private) |
@@ -27,7 +28,9 @@ Everything is worked out from the readings it saves (`Sources/Battery/Analysis.s
 
 ## Battery use
 
-It reads every second while on screen. In the background it keeps running only while plugged in, every ten seconds (coarse location updates keep it awake; the fixes are thrown away), and stops the moment you unplug. Off the charger it does nothing unless iOS wakes it for a background refresh or a Shortcuts automation runs **Record Battery** (Automation › Charger › Is Connected / Is Disconnected).
+It reads every second while on screen. In the background it keeps running only while plugged in, reading every ten seconds and saving each new percent and once a minute (coarse location updates keep it awake; the fixes are thrown away), and stops the moment you unplug. Off the charger it does nothing unless iOS wakes it for a background refresh.
+
+A charge that starts while it's closed reaches it two ways: a background task iOS runs only on power, when iOS chooses, and a Shortcuts automation running **Record Battery** the moment you plug in (Automation › Charger › Is Connected, Run Immediately). Either one starts the keepalive when Location is set to Always; with While Using, the background task records for as long as iOS lets it run. `log.txt` beside the readings notes what woke it each time.
 
 ## Build
 

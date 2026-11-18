@@ -126,10 +126,6 @@ nonisolated final class Sensors: @unchecked Sendable {
         return value.isFinite ? value : nil
     }
 
-    func allPower() -> [(name: String, usage: Int, value: Double?)] {
-        discover(["PrimaryUsagePage": 0xff08], event: 25).map { ($0.name, $0.usage, read($0)) }
-    }
-
     /// Readings of the power sensors by name ("Charger VQ0u" and so on).
     func readPower() -> [String: Double] {
         var values: [String: Double] = [:]
@@ -149,6 +145,22 @@ nonisolated final class Sensors: @unchecked Sendable {
             }
         }
         return (battery, chip)
+    }
+}
+
+/// The battery level to the percent. powerd's battery description and UIKit both round it to 5% for apps, but the
+/// level powerd posts for notify clients isn't rounded: the low byte is the percent, bit 19 says it's valid.
+nonisolated enum ExactPercent {
+    private static let token: Int32? = {
+        var token: Int32 = 0
+        return notify_register_check("com.apple.system.powersources.percent", &token) == NOTIFY_STATUS_OK ? token : nil
+    }()
+
+    static func current() -> Double? {
+        guard let token else { return nil }
+        var state: UInt64 = 0
+        guard notify_get_state(token, &state) == NOTIFY_STATUS_OK, state & (1 << 19) != 0, state & 0xFF <= 100 else { return nil }
+        return Double(state & 0xFF)
     }
 }
 

@@ -23,7 +23,7 @@ final class Monitor {
     let keepalive = Keepalive()
     let isDemo: Bool
 
-    let reader = Reader()
+    private let reader = Reader()
     private let store: Store
     private var loop: Task<Void, Never>?
     private var active = false
